@@ -59,6 +59,23 @@ def band_url(item: dict, band: str) -> str:
     return assets[key]["href"]
 
 
+def scale_offset(item: dict, band: str) -> tuple:
+    """(scale, offset) converting a band's DNs to surface reflectance.
+
+    Read from the STAC ``raster:bands`` metadata when present (baseline
+    >= 04.00 scenes carry offset -0.1); older scenes fall back to 1e-4, 0.
+    Non-reflectance assets (SCL, TCI) return (1, 0).
+    """
+    key = _asset_key(band)
+    if key in ("scl", "visual", "thumbnail"):
+        return (1.0, 0.0)
+    raster_bands = item["assets"].get(key, {}).get("raster:bands") or []
+    if raster_bands:
+        rb = raster_bands[0]
+        return (rb.get("scale", 1e-4), rb.get("offset", 0.0))
+    return (1e-4, 0.0)
+
+
 def search_sentinel2(
     bbox: Sequence[float],
     start: str,

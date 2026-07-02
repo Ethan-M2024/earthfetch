@@ -1,21 +1,44 @@
 # earthfetch
 
-**USGS 3DEP DEMs and Sentinel-2 L2A imagery. Zero API keys. Zero accounts.**
+**Analysis-ready Earth data in one line. Zero API keys. Zero accounts.**
 
 ```python
 import earthfetch as ef
 
-# DEM + red + NIR on one pixel-aligned 30 m UTM grid, in seconds:
-ds = ef.stack(
-    bbox=(-111.90, 40.70, -111.85, 40.75),
-    crs="EPSG:32612", res=30,
-    bands=["B04", "B08"],
-    start="2026-05-01", end="2026-06-01",
-)
-ndvi = (ds.B08 - ds.B04) / (ds.B08 + ds.B04)
+# Cloud-free composite of any place on Earth — geocoded, cloud-masked,
+# mosaicked across scene boundaries, reflectance-scaled, in your UTM zone:
+rgb = ef.composite("Moab, Utah", bands=["B04", "B03", "B02"],
+                   start="2026-05-01", end="2026-06-15")
+ef.preview(rgb, "moab.png")
+
+# NDVI for a farm polygon, clipped to its boundary:
+ds = ef.composite("field.geojson", bands=["B08", "B04"],
+                  start="2026-05-01", end="2026-06-01")
+ndvi = ef.ndvi(ds)
+
+# Terrain anywhere (Alps -> Copernicus DEM, auto-UTM):
+terr = ef.terrain((6.85, 45.82, 6.90, 45.87))   # dem, slope, aspect, hillshade
+ef.to_cog(terr.hillshade, "hillshade.tif")
 ```
 
-Only the bbox window travels over the network — bands and DEM tiles are Cloud-Optimized GeoTIFFs read with HTTP range requests, not full-file downloads.
+One scene replaces an afternoon: no EarthExplorer queues, no Copernicus
+tokens, no manual SCL masking, no tile mosaicking, no gdalwarp.
+Only the AOI window travels over the network — everything is read from
+Cloud-Optimized GeoTIFFs with HTTP range requests.
+
+## AOI: pass anything
+
+Every function takes bboxes, GeoJSON dicts, `.geojson` files, shapely
+geometries, or place names:
+
+```python
+ef.composite((-111.9, 40.7, -111.8, 40.8), ...)   # bbox tuple
+ef.composite("Yosemite National Park", ...)        # geocoded (Nominatim)
+ef.composite("watershed.geojson", ...)             # file; clips to polygon
+ef.composite(shapely_polygon, ...)                 # __geo_interface__
+```
+
+`crs="utm"` (default in `composite`/`terrain`) picks the right UTM zone.
 
 ## Data sources (all free, no auth)
 
@@ -30,6 +53,22 @@ Only the bbox window travels over the network — bands and DEM tiles are Cloud-
 ```bash
 pip install earthfetch              # search + download only (requests)
 pip install "earthfetch[xarray]"    # + load_dem / load_sentinel2 / stack
+```
+
+## Composites, indices, terrain
+
+```python
+# method: "median" (robust), "mean", "first" (fastest)
+da = ef.composite(aoi, bands=["B04","B03","B02"], start=..., end=...,
+                  method="median", mask_clouds=True, max_scenes=8)
+
+ef.ndvi(ds); ef.ndwi(ds); ef.nbr(ds); ef.evi(ds); ef.savi(ds)
+
+terr = ef.terrain(aoi, products=["dem","slope","aspect","hillshade"],
+                  resolution="10m")   # USGS in US, Copernicus elsewhere
+
+ef.to_geotiff(obj, "out.tif"); ef.to_cog(obj, "out.tif")
+ef.preview(obj, "look.png")           # percentile-stretched quicklook
 ```
 
 ## Array API (pipelines)

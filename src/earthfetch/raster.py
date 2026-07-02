@@ -105,6 +105,25 @@ def warp_into_grid(
     return dst
 
 
+def mask_to_geometry(
+    data: np.ndarray,
+    geometry: dict,
+    transform: "rasterio.Affine",
+    crs: str,
+    nodata: float = float("nan"),
+) -> np.ndarray:
+    """Set pixels outside a WGS84 GeoJSON geometry to ``nodata`` (in place)."""
+    from rasterio.features import geometry_mask
+    from rasterio.warp import transform_geom
+
+    geom = transform_geom("EPSG:4326", crs, geometry)
+    shape = data.shape[-2:]
+    outside = geometry_mask([geom], out_shape=shape, transform=transform,
+                            invert=False)
+    data[..., outside] = nodata
+    return data
+
+
 def write_geotiff(
     path: str | os.PathLike,
     data: np.ndarray,
