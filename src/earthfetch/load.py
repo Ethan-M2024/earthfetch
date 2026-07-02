@@ -15,7 +15,8 @@ from .exceptions import MissingDependencyError, TileNotFoundError
 from .raster import make_grid, warp_into_grid
 from .sentinel import BAND_RESOLUTION, band_url, clearest_scene
 from .usgs import dem_tile_urls
-from .utils import logger, validate_bbox
+from .aoi import resolve_aoi, resolve_crs
+from .utils import logger
 
 #: meters per degree at the equator, for geographic-CRS resolution defaults
 _M_PER_DEG = 111_320.0
@@ -85,7 +86,9 @@ def load_dem(
     Returns a float32 DataArray (y, x) of elevation in meters, NaN nodata,
     with ``crs``, ``transform`` and ``sources`` attrs.
     """
-    bbox = validate_bbox(bbox)
+    a = resolve_aoi(bbox)
+    bbox = a.bbox
+    crs = resolve_crs(crs, bbox)
     urls: list = []
     used = source
     if source in ("usgs", "auto"):
@@ -133,7 +136,9 @@ def load_sentinel2(
     metadata in attrs. Multi-band assets like TCI are not supported here —
     use ``download_sentinel2`` for those.
     """
-    bbox = validate_bbox(bbox)
+    a = resolve_aoi(bbox)
+    bbox = a.bbox
+    crs = resolve_crs(crs, bbox)
     if item is None:
         if start is None or end is None:
             raise ValueError("pass item=... or start=/end= dates")
@@ -181,6 +186,9 @@ def stack(
     per band (``B04``, ``B08``, ...), all float32 on the same (y, x) grid.
     """
     xr = _xr()
+    a = resolve_aoi(bbox)
+    bbox = a.bbox
+    crs = resolve_crs(crs, bbox)
     dem = load_dem(bbox, resolution=dem_resolution, crs=crs, res=res,
                    source=dem_source)
     s2 = load_sentinel2(bbox, bands=bands, crs=crs, res=res, item=item,

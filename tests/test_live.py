@@ -53,3 +53,21 @@ def test_stack_aligned():
     assert ds.dem.shape == ds.B04.shape == ds.B08.shape
     ndvi = (ds.B08 - ds.B04) / (ds.B08 + ds.B04)
     assert np.isfinite(ndvi.values).any()
+
+
+def test_composite_place_name_live():
+    import earthfetch as ef
+
+    da = ef.composite("Moab, Utah", bands=["B04"], res=60,
+                      start="2026-05-01", end="2026-06-01", max_scenes=2)
+    assert da.attrs["crs"] == "EPSG:32612"
+    assert da.attrs["aoi_name"]  # geocoded
+    assert np.isfinite(da.values).any()
+
+
+def test_terrain_live():
+    import earthfetch as ef
+
+    ds = ef.terrain(BBOX, products=["dem", "slope"], resolution="30m")
+    assert float(ds.slope.max()) > 0
+    assert ds.attrs["crs"] == "EPSG:32612"  # auto-UTM

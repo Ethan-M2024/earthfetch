@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.3.0 (2026-07-02)
+
+### Added
+- **Any-AOI input** everywhere: bbox, GeoJSON dict/file, shapely geometry
+  (`__geo_interface__`), or place name (free Nominatim geocoding).
+  Polygon AOIs clip results automatically.
+- **`composite()`** — cloud-free multi-scene composites: SCL cloud
+  masking, seamless across MGRS tile boundaries, median/mean/first,
+  reflectance-scaled via STAC metadata.
+- **Spectral indices**: `ndvi`, `ndwi`, `nbr`, `evi`, `savi` on any
+  earthfetch Dataset/DataArray.
+- **`terrain()`** — slope, aspect, hillshade from any DEM source.
+- **Export**: `to_geotiff()`, `to_cog()`, `preview()` (stretched PNG).
+- `crs="utm"` shorthand auto-selects the AOI's UTM zone (new default in
+  `composite`/`terrain`).
+
 ## 0.2.0 (2026-07-02)
 
 ### Added

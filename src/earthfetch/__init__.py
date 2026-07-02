@@ -24,8 +24,9 @@ from .sentinel import (
     search_sentinel2,
 )
 from .usgs import DEM_DATASETS, dem_tile_urls, download_dem, search_dem
+from .aoi import AOI, geocode, resolve_aoi, utm_crs
 
-__version__ = "0.2.0"
+__version__ = "0.3.0"
 
 #: Lazily-imported names that need the raster/xarray extras
 _LAZY = {
@@ -36,6 +37,19 @@ _LAZY = {
     "load_dem": "load",
     "load_sentinel2": "load",
     "stack": "load",
+    "composite": "composite",
+    "terrain": "terrain",
+    "slope_aspect": "terrain",
+    "hillshade": "terrain",
+    "ndvi": "indices",
+    "ndwi": "indices",
+    "nbr": "indices",
+    "evi": "indices",
+    "savi": "indices",
+    "INDICES": "indices",
+    "to_geotiff": "export",
+    "to_cog": "export",
+    "preview": "export",
 }
 
 
@@ -44,7 +58,12 @@ def __getattr__(name):
         import importlib
 
         mod = importlib.import_module(f".{_LAZY[name]}", __name__)
-        return getattr(mod, name)
+        obj = getattr(mod, name)
+        # cache the resolved object; without this, functions sharing a
+        # submodule's name (composite, terrain) resolve to the module on
+        # the next access, because importing sets it as a package attr
+        globals()[name] = obj
+        return obj
     raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
 
 
@@ -56,6 +75,10 @@ __all__ = [
     "scene_summary", "band_url",
     # arrays (extras)
     "load_dem", "load_sentinel2", "stack", "clip_reproject",
+    "composite", "terrain", "ndvi", "ndwi", "nbr", "evi", "savi",
+    "to_geotiff", "to_cog", "preview",
+    # aoi
+    "AOI", "resolve_aoi", "geocode", "utm_crs",
     # metadata
     "DEM_DATASETS", "BAND_ALIASES", "BAND_RESOLUTION",
     # exceptions
