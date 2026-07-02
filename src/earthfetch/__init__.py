@@ -25,8 +25,9 @@ from .sentinel import (
 )
 from .usgs import DEM_DATASETS, dem_tile_urls, download_dem, search_dem
 from .aoi import AOI, geocode, resolve_aoi, utm_crs
+from .naip import naip_tile_urls, search_naip
 
-__version__ = "0.3.0"
+__version__ = "0.4.0"
 
 #: Lazily-imported names that need the raster/xarray extras
 _LAZY = {
@@ -47,6 +48,7 @@ _LAZY = {
     "evi": "indices",
     "savi": "indices",
     "INDICES": "indices",
+    "load_naip": "naip",
     "to_geotiff": "export",
     "to_cog": "export",
     "preview": "export",
@@ -75,7 +77,8 @@ __all__ = [
     "scene_summary", "band_url",
     # arrays (extras)
     "load_dem", "load_sentinel2", "stack", "clip_reproject",
-    "composite", "terrain", "ndvi", "ndwi", "nbr", "evi", "savi",
+    "composite", "terrain", "load_naip", "search_naip",
+    "ndvi", "ndwi", "nbr", "evi", "savi",
     "to_geotiff", "to_cog", "preview",
     # aoi
     "AOI", "resolve_aoi", "geocode", "utm_crs",

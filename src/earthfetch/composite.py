@@ -61,7 +61,7 @@ def composite(
     max_cloud: float = 60.0,
     max_scenes: int = 8,
     scale: bool = True,
-    clip: bool = True,
+    clip: bool = None,
 ) -> "xarray.DataArray":
     """Cloud-free composite of Sentinel-2 bands over a date range.
 
@@ -82,7 +82,9 @@ def composite(
     max_cloud : scene-level cloud prefilter for the search.
     max_scenes : acquisition days to blend.
     scale : convert DNs to surface reflectance (0..1) using STAC metadata.
-    clip : if the AOI is a polygon, NaN-out pixels outside it.
+    clip : NaN-out pixels outside a polygon AOI. Default (None): clip
+        polygons you passed explicitly, but keep the full rectangle for
+        geocoded place names (pass clip=True to cut to a city boundary).
 
     Returns a float32 DataArray (band, y, x), NaN nodata, with the scene ids
     and dates used in ``attrs``.
@@ -139,6 +141,8 @@ def composite(
     elif method == "mean" and stacks:
         acc = np.nanmean(np.stack(stacks), axis=0)
 
+    if clip is None:
+        clip = a.clip_default
     if clip and a.geometry is not None:
         mask_to_geometry(acc, a.geometry, transform, crs)
 

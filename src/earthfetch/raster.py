@@ -22,7 +22,7 @@ try:
     from rasterio.enums import Resampling
     from rasterio.errors import WindowError
     from rasterio.merge import merge as rio_merge
-    from rasterio.transform import array_bounds, from_origin
+    from rasterio.transform import Affine, array_bounds, from_origin
     from rasterio.warp import calculate_default_transform, reproject, transform_bounds
     from rasterio.windows import Window, from_bounds as window_from_bounds
 except ImportError as exc:  # pragma: no cover
@@ -88,12 +88,23 @@ def warp_into_grid(
                     continue
                 if win.width <= 0 or win.height <= 0:
                     continue
-                data = ds.read(band, window=win)
-                logger.debug("read %sx%s window from %s", win.width, win.height, src)
+                # decimate the read to ~2x the target resolution so GDAL
+                # serves it from overviews — reading 0.6 m NAIP at native
+                # res for a 30 m grid transfers 2500x more than needed
+                grid_px_in_src = (src_bounds[2] - src_bounds[0]) / width
+                factor = max(1.0, grid_px_in_src / ds.res[0] / 2.0)
+                out_h = max(1, round(win.height / factor))
+                out_w = max(1, round(win.width / factor))
+                data = ds.read(band, window=win, out_shape=(out_h, out_w))
+                src_transform = ds.window_transform(win) * Affine.scale(
+                    win.width / out_w, win.height / out_h
+                )
+                logger.debug("read %dx%d (of %dx%d) from %s",
+                             out_w, out_h, win.width, win.height, src)
                 reproject(
                     source=data,
                     destination=dst,
-                    src_transform=ds.window_transform(win),
+                    src_transform=src_transform,
                     src_crs=ds.crs,
                     dst_transform=transform,
                     dst_crs=crs,

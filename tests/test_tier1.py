@@ -158,3 +158,26 @@ def test_preview_png(tmp_path):
     )
     out = ef.preview(da, tmp_path / "p.png")
     assert out.exists() and out.stat().st_size > 100
+
+
+# ---- NAIP ----
+
+def test_naip_band_order():
+    from earthfetch.naip import NAIP_BANDS
+
+    assert NAIP_BANDS == {"R": 1, "G": 2, "B": 3, "N": 4}
+
+
+def test_sign_url_appends_token(monkeypatch):
+    from earthfetch import naip
+
+    monkeypatch.setitem(naip._token, "value", "sig=abc")
+    monkeypatch.setitem(naip._token, "expires", 9e9)
+    assert naip.sign_url("https://x/a.tif") == "https://x/a.tif?sig=abc"
+    assert naip.sign_url("https://x/a.tif?v=1") == "https://x/a.tif?v=1&sig=abc"
+
+
+def test_geocoded_aoi_defaults_no_clip():
+    a = AOI(bbox=BOX, geometry=POLY, clip_default=False)
+    assert resolve_aoi(a).clip_default is False
+    assert resolve_aoi(POLY).clip_default is True  # explicit polygon clips
