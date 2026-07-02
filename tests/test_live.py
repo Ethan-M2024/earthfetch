@@ -71,3 +71,12 @@ def test_terrain_live():
     ds = ef.terrain(BBOX, products=["dem", "slope"], resolution="30m")
     assert float(ds.slope.max()) > 0
     assert ds.attrs["crs"] == "EPSG:32612"  # auto-UTM
+
+
+def test_load_naip_live():
+    import earthfetch as ef
+
+    img = ef.load_naip(BBOX, res=10)
+    assert img.shape[0] == 3
+    assert img.attrs["source"] == "naip"
+    assert np.isfinite(img.values).mean() > 0.95  # full rect, no fragment

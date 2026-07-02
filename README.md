@@ -38,7 +38,9 @@ ef.composite("watershed.geojson", ...)             # file; clips to polygon
 ef.composite(shapely_polygon, ...)                 # __geo_interface__
 ```
 
-`crs="utm"` (default in `composite`/`terrain`) picks the right UTM zone.
+`crs="utm"` (default in `composite`/`terrain`/`load_naip`) picks the right
+UTM zone. Explicit polygons clip results to their boundary; geocoded place
+names return the full rectangle (pass `clip=True` to cut to the boundary).
 
 ## Data sources (all free, no auth)
 
@@ -47,6 +49,15 @@ ef.composite(shapely_polygon, ...)                 # __geo_interface__
 | USGS 3DEP (The National Map) | DEM | United States | 1 m, 10 m, 30 m, 5 m (AK) |
 | Copernicus GLO-30 (AWS) | DEM | Global | 30 m |
 | Sentinel-2 L2A (Earth Search / AWS) | Multispectral imagery | Global | 10 / 20 / 60 m |
+| NAIP (Planetary Computer) | Aerial photography (RGBN) | United States | 0.6-1 m |
+
+Looking for "Google Earth"-quality imagery? That's NAIP: actual aerial
+photos where you can see individual cars and trees.
+
+```python
+img = ef.load_naip("Moab, Utah", res=1)          # 1 m RGB mosaic
+nir = ef.load_naip(aoi, bands=["N","R","G"])     # false-color infrared
+```
 
 ## Install
 

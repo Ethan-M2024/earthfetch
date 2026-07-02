@@ -30,6 +30,11 @@ class AOI(NamedTuple):
     bbox: Tuple[float, float, float, float]
     geometry: Optional[dict] = None  # GeoJSON geometry in WGS84, for masking
     name: Optional[str] = None
+    #: whether functions should clip to ``geometry`` when clip=None:
+    #: True for polygons the user passed explicitly; False for geocoded
+    #: place names, where the boundary is incidental and users expect the
+    #: full rectangle
+    clip_default: bool = True
 
 
 def _geom_bounds(geometry: dict) -> Tuple[float, float, float, float]:
@@ -84,7 +89,8 @@ def geocode(place: str) -> AOI:
     logger.info("geocoded %r -> %s (%s)", place, hit.get("display_name"),
                 (west, south, east, north))
     return AOI(bbox=validate_bbox((west, south, east, north)),
-               geometry=geometry, name=hit.get("display_name"))
+               geometry=geometry, name=hit.get("display_name"),
+               clip_default=False)
 
 
 def resolve_aoi(aoi) -> AOI:

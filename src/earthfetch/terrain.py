@@ -52,7 +52,7 @@ def terrain(
     source: str = "auto",
     azimuth: float = 315.0,
     altitude: float = 45.0,
-    clip: bool = True,
+    clip: bool = None,
 ) -> "xarray.Dataset":
     """DEM + terrain derivatives for any AOI as an aligned Dataset.
 
@@ -77,6 +77,8 @@ def terrain(
     if "hillshade" in products:
         layers["hillshade"] = hillshade(dem.values, pixel, azimuth, altitude)
 
+    if clip is None:
+        clip = a.clip_default
     if clip and a.geometry is not None:
         transform, width, height = make_grid(a.bbox, crs, pixel)
         for arr in layers.values():
