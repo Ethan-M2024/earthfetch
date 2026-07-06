@@ -28,7 +28,7 @@ from .sentinel import (
 )
 from .usgs import DEM_DATASETS, dem_tile_urls, download_dem, search_dem
 
-__version__ = "0.5.0"
+__version__ = "0.5.1"
 
 #: Lazily-imported names that need the raster/xarray extras
 _LAZY = {
@@ -70,12 +70,37 @@ _LAZY = {
     "zonal_stats": "zonal",
 }
 
+#: which optional extra to point users at when a lazy submodule can't be
+#: imported (its heavy deps are missing on a core-only install)
+_EXTRA_FOR_MODULE = {
+    "raster": "raster",
+    "export": "raster",
+    "zonal": "raster",
+    "load": "xarray",
+    "_composite": "xarray",
+    "_terrain": "xarray",
+    "timeseries": "xarray",
+    "indices": "xarray",
+    "naip": "xarray",
+    "interop": "interop",
+}
+
 
 def __getattr__(name):
     if name in _LAZY:
         import importlib
 
-        mod = importlib.import_module(f".{_LAZY[name]}", __name__)
+        modname = _LAZY[name]
+        try:
+            mod = importlib.import_module(f".{modname}", __name__)
+        except MissingDependencyError:
+            raise  # the submodule already produced a helpful message
+        except ImportError as exc:
+            extra = _EXTRA_FOR_MODULE.get(modname, "all")
+            raise MissingDependencyError(
+                f"{name!r} needs the optional {extra!r} dependencies; "
+                f"install with: pip install 'earthfetch[{extra}]'"
+            ) from exc
         obj = getattr(mod, name)
         # cache the resolved object so later accesses skip the import.
         # submodules are underscore-prefixed (_composite, _terrain) so a

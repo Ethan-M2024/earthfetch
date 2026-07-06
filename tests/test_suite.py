@@ -906,3 +906,51 @@ def test_version_matches_metadata():
 def test_all_exports_resolve():
     for name in ef.__all__:
         assert getattr(ef, name) is not None
+
+
+def test_missing_extra_gives_friendly_error(monkeypatch):
+    # simulate a core-only install where importing the submodule fails on
+    # a missing heavy dependency (numpy)
+    import importlib
+
+    import earthfetch
+    from earthfetch.exceptions import MissingDependencyError
+
+    real = importlib.import_module
+
+    def fake(name, package=None):
+        if name == "._composite":
+            raise ImportError("No module named 'numpy'")
+        return real(name, package)
+
+    monkeypatch.setattr(importlib, "import_module", fake)
+    monkeypatch.delitem(earthfetch.__dict__, "composite", raising=False)
+    with pytest.raises(MissingDependencyError) as e:
+        earthfetch.__getattr__("composite")
+    assert "xarray" in str(e.value)
+    assert "pip install" in str(e.value)
+
+
+def test_missing_extra_preserves_submodule_message(monkeypatch):
+    # a MissingDependencyError already raised by the submodule (with its own
+    # specific message) must pass through unchanged, not get re-wrapped
+    import importlib
+
+    import earthfetch
+    from earthfetch.exceptions import MissingDependencyError
+
+    real = importlib.import_module
+
+    def fake(name, package=None):
+        if name == ".raster":
+            raise MissingDependencyError(
+                "rasterio is required for raster operations: "
+                "pip install earthfetch[raster]"
+            )
+        return real(name, package)
+
+    monkeypatch.setattr(importlib, "import_module", fake)
+    monkeypatch.delitem(earthfetch.__dict__, "clip_reproject", raising=False)
+    with pytest.raises(MissingDependencyError) as e:
+        earthfetch.__getattr__("clip_reproject")
+    assert "rasterio is required for raster operations" in str(e.value)

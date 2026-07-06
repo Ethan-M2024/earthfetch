@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.5.1 (2026-07-06)
+
+### Fixed
+- On a core-only install, calling an analysis function (e.g. `composite`,
+  `time_series`, `sample`) raised a raw `ModuleNotFoundError: No module
+  named 'numpy'`. The lazy loader now catches the missing heavy dependency
+  and raises a `MissingDependencyError` naming the extra to install
+  (`pip install 'earthfetch[xarray]'`).
+
 ## 0.5.0 (2026-07-06)
 
 ### Added
