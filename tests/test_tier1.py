@@ -71,7 +71,8 @@ def _fake_ds():
         return xr.DataArray(np.full(shape, v, dtype="float32"),
                                     dims=("y", "x"))
     return xr.Dataset({"B08": mk(0.5), "B04": mk(0.1), "B03": mk(0.2),
-                       "B12": mk(0.2), "B02": mk(0.05)})
+                       "B12": mk(0.2), "B02": mk(0.05), "B11": mk(0.3),
+                       "B05": mk(0.15)})
 
 
 def test_ndvi_dataset():
@@ -93,6 +94,27 @@ def test_all_indices_finite():
     ds = _fake_ds()
     for name, fn in ef.INDICES.items():
         assert np.isfinite(fn(ds).values).all(), name
+
+
+def test_ndmi_value():
+    val = float(ef.ndmi(_fake_ds()).mean())
+    assert val == pytest.approx((0.5 - 0.3) / (0.5 + 0.3))
+
+
+def test_ndsi_value():
+    val = float(ef.ndsi(_fake_ds()).mean())
+    assert val == pytest.approx((0.2 - 0.3) / (0.2 + 0.3))
+
+
+def test_ndbi_is_negated_ndmi():
+    ds = _fake_ds()
+    assert float(ef.ndbi(ds).mean()) == pytest.approx(-float(ef.ndmi(ds).mean()))
+
+
+def test_msavi_bounded():
+    vals = ef.msavi(_fake_ds()).values
+    assert np.isfinite(vals).all()
+    assert ((vals >= -1) & (vals <= 1)).all()
 
 
 # ---- terrain math ----
