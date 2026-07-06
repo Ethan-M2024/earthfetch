@@ -37,8 +37,11 @@ def search_dem(
     resolution : one of ``DEM_DATASETS`` keys ("1m", "10m", "30m", "5m-ak").
     max_items : cap on returned tiles.
 
-    Returns a list of product dicts with ``title``, ``downloadURL``,
-    ``sizeInBytes``, ``boundingBox`` and other TNM metadata.
+    Returns
+    -------
+    list of dict
+        Product dicts with ``title``, ``downloadURL``, ``sizeInBytes``,
+        ``boundingBox`` and other TNM metadata.
     """
     if resolution not in DEM_DATASETS:
         raise ValueError(f"resolution must be one of {sorted(DEM_DATASETS)}")

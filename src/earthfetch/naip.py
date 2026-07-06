@@ -119,7 +119,10 @@ def load_naip(
     clip : NaN-out pixels outside a polygon AOI. Defaults to True for
         polygons you pass explicitly, False for geocoded place names.
 
-    Returns a float32 DataArray (band, y, x) of 0-255 values, NaN nodata.
+    Returns
+    -------
+    xarray.DataArray
+        float32 (band, y, x) of 0-255 values, NaN nodata.
     """
     import numpy as np
 

@@ -91,8 +91,11 @@ def composite(
         polygons you passed explicitly, but keep the full rectangle for
         geocoded place names (pass clip=True to cut to a city boundary).
 
-    Returns a float32 DataArray (band, y, x), NaN nodata, with the scene ids
-    and dates used in ``attrs``.
+    Returns
+    -------
+    xarray.DataArray
+        float32 (band, y, x), NaN nodata, with the scene ids and dates
+        used in ``attrs``.
     """
     if method not in ("median", "mean", "first"):
         raise ValueError("method must be 'median', 'mean', or 'first'")

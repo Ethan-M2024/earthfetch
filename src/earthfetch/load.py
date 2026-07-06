@@ -88,8 +88,11 @@ def load_dem(
     source : "usgs", "copernicus", or "auto" (USGS first, Copernicus
         fallback outside the US).
 
-    Returns a float32 DataArray (y, x) of elevation in meters, NaN nodata,
-    with ``crs``, ``transform`` and ``sources`` attrs.
+    Returns
+    -------
+    xarray.DataArray
+        float32 (y, x) elevation in meters, NaN nodata, with ``crs``,
+        ``transform`` and ``sources`` attrs.
     """
     a = resolve_aoi(bbox)
     bbox = a.bbox

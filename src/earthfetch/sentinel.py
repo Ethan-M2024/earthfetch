@@ -92,8 +92,11 @@ def search_sentinel2(
     max_cloud : maximum scene cloud cover percent.
     limit : cap on returned scenes.
 
-    Returns STAC item dicts sorted by cloud cover (clearest first). Each has
-    ``id``, ``properties`` (datetime, eo:cloud_cover, ...) and ``assets``.
+    Returns
+    -------
+    list of dict
+        STAC item dicts sorted by cloud cover (clearest first). Each has
+        ``id``, ``properties`` (datetime, eo:cloud_cover, ...) and ``assets``.
     """
     bbox = validate_bbox(bbox)
     session = get_session()

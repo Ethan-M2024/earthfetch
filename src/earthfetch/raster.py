@@ -181,7 +181,10 @@ def clip_reproject(
     dst_crs : any CRS string pyproj understands ("EPSG:32612", "EPSG:5070"...).
     out_path : output GeoTIFF path.
 
-    Returns the output path.
+    Returns
+    -------
+    pathlib.Path
+        The output GeoTIFF path.
     """
     if resampling is None:
         resampling = Resampling.bilinear

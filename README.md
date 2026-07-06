@@ -2,6 +2,8 @@
 
 **Analysis-ready Earth data in one line. Zero API keys. Zero accounts.**
 
+📖 **Docs: https://ethan-m2024.github.io/earthfetch/**
+
 ```python
 import earthfetch as ef
 
