@@ -1,8 +1,26 @@
 # Changelog
 
-## Unreleased
+## 0.5.0 (2026-07-06)
 
 ### Added
+- **`time_series`**: cloud-masked Sentinel-2 datacubes — one time step per
+  clear acquisition day, `(time, band, y, x)`, with optional `freq`
+  resampling (e.g. monthly medians) for change detection and phenology.
+- **`sample`** and **`zonal_stats`**: read raster values at points, or
+  aggregate over polygons (mean NDVI per field, elevation stats per
+  watershed) — for any earthfetch DataArray/Dataset.
+- **rioxarray interop** (`to_rioxarray`, `reproject`) under a new
+  `interop` extra: attach the earthfetch CRS/transform so the `.rio`
+  accessor works and results drop into existing rioxarray workflows.
+- **`elevation(points)`**: meters at a point (or array of points) — the
+  most direct DEM lookup.
+- **`show(obj)`**: render a result inline with matplotlib (RGB stretch or
+  colormapped single band) under a new `plot` extra.
+- **Named band presets**: pass `bands="true_color"`, `"false_color"`,
+  `"agriculture"`, ... to `composite`/`time_series`/`load_sentinel2`
+  instead of ESA ids (see `BAND_PRESETS`). Also fixes a single band id
+  string (`bands="B08"`) being split into characters.
+- **`normalized_difference(obj, a, b)`**: generic index for any two bands.
 - Seven spectral indices: `ndmi`, `ndsi`, `ndre`, `ndbi`, `gndvi`,
   `msavi`, `bsi` (twelve total).
 - `py.typed` marker so type hints are visible to mypy/pyright.

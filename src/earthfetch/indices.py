@@ -40,6 +40,16 @@ def _band(obj, name: str):
     return obj.sel(band=name)
 
 
+def normalized_difference(obj, band_a: str, band_b: str, name: str = "nd"):
+    """Generic normalized difference ``(A - B)/(A + B)`` for any two bands.
+
+    Escape hatch beyond the twelve named indices, e.g.
+    ``normalized_difference(ds, "B03", "B08", name="ndwi")``.
+    """
+    a, b = _band(obj, band_a), _band(obj, band_b)
+    return ((a - b) / (a + b)).rename(name)
+
+
 def ndvi(obj):
     """Normalized Difference Vegetation Index: (NIR - Red)/(NIR + Red)."""
     nir, red = _band(obj, "B08"), _band(obj, "B04")

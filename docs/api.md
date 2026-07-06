@@ -16,10 +16,34 @@ One call, bbox in, aligned `xarray` out. Requires `earthfetch[xarray]`.
 
 ::: earthfetch.naip.load_naip
 
+::: earthfetch.timeseries.time_series
+
+::: earthfetch.load.elevation
+
+## Analysis
+
+Extract values from any earthfetch raster at points or over polygons.
+Requires the `raster` extra.
+
+::: earthfetch.zonal.sample
+
+::: earthfetch.zonal.zonal_stats
+
+## Interoperability
+
+Bridge earthfetch results into the rioxarray / rasterio ecosystem.
+Requires the `interop` extra (`pip install earthfetch[interop]`).
+
+::: earthfetch.interop.to_rioxarray
+
+::: earthfetch.interop.reproject
+
 ## Spectral indices
 
 Each accepts an `xarray.Dataset` (band-named variables) or a `DataArray`
 with a `band` coordinate, and returns a named `DataArray`.
+
+::: earthfetch.indices.normalized_difference
 
 ::: earthfetch.indices.ndvi
 
@@ -54,6 +78,8 @@ Requires `earthfetch[raster]`.
 ::: earthfetch.export.to_cog
 
 ::: earthfetch.export.preview
+
+::: earthfetch.export.show
 
 ## Raster operations
 

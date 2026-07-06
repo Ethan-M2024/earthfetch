@@ -115,6 +115,63 @@ def to_cog(obj, path: str | os.PathLike) -> Path:
                   {"driver": "COG", "compress": "deflate"})
 
 
+def _stretch_rgb(data: np.ndarray, stretch: tuple) -> np.ndarray:
+    """Percentile-stretch a (bands, y, x) float array to 0..1 for display."""
+    out = np.zeros_like(data, dtype="float32")
+    for i, band in enumerate(data):
+        finite = band[np.isfinite(band)]
+        if finite.size == 0:
+            continue
+        lo, hi = np.percentile(finite, stretch)
+        scaled = (band - lo) / (hi - lo) if hi > lo else band * 0
+        out[i] = np.clip(np.nan_to_num(scaled), 0, 1)
+    return out
+
+
+def show(obj, ax=None, cmap: str = "viridis", stretch: tuple = (2, 98),
+         title: str | None = None, colorbar: bool = True):
+    """Render a result inline with matplotlib — no file needed.
+
+    3-band inputs display as a percentile-stretched RGB; single bands (and
+    indices) as a colormapped image with a colorbar. Axes are in the data's
+    CRS units. Returns the matplotlib ``Axes``.
+
+    Requires the ``plot`` extra: ``pip install earthfetch[plot]``.
+    """
+    try:
+        import matplotlib.pyplot as plt
+    except ImportError as exc:  # pragma: no cover
+        from .exceptions import MissingDependencyError
+
+        raise MissingDependencyError(
+            "matplotlib is required for show(): pip install earthfetch[plot]"
+        ) from exc
+
+    data, names, transform, _ = _collect(obj)
+    left, top = transform.c, transform.f
+    right = left + transform.a * data.shape[-1]
+    bottom = top + transform.e * data.shape[-2]
+    extent = (left, right, bottom, top)
+    if ax is None:
+        _, ax = plt.subplots()
+
+    if data.shape[0] >= 3:
+        rgb = _stretch_rgb(data[:3], stretch)
+        ax.imshow(np.moveaxis(rgb, 0, -1), extent=extent)
+    else:
+        band = data[0]
+        finite = band[np.isfinite(band)]
+        vlo, vhi = (np.percentile(finite, stretch) if finite.size
+                    else (0, 1))
+        im = ax.imshow(band, extent=extent, cmap=cmap, vmin=vlo, vmax=vhi)
+        if colorbar:
+            ax.figure.colorbar(im, ax=ax, shrink=0.8,
+                               label=names[0] if names else "")
+    ax.set_title(title if title is not None
+                 else getattr(obj, "name", None) or "")
+    return ax
+
+
 def preview(obj, path: str | os.PathLike = "preview.png",
             stretch: tuple = (2, 98)) -> Path:
     """Quick-look PNG with a percentile stretch.

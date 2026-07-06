@@ -8,11 +8,20 @@ Every example runs against live, free, no-auth APIs.
 import earthfetch as ef
 
 rgb = ef.composite("Zion National Park",
-                   bands=["B04", "B03", "B02"],
+                   bands="true_color",     # or "false_color", "agriculture", ...
                    start="2026-05-01", end="2026-06-15")
+ef.show(rgb)                    # render inline in a notebook
 ef.preview(rgb, "zion.png")     # percentile-stretched quick-look PNG
 ef.to_cog(rgb, "zion.tif")      # Cloud-Optimized GeoTIFF, reflectance
 ```
+
+Band combinations have names — pass `bands="true_color"`, `"false_color"`,
+`"color_infrared"`, `"agriculture"`, `"swir"`, `"geology"`, or
+`"healthy_vegetation"` instead of memorizing ESA ids. See
+`ef.BAND_PRESETS`.
+
+Need a quick elevation? `ef.elevation((-111.65, 40.36))` returns meters at
+a point (or an array for many points).
 
 `composite` searches every Sentinel-2 scene touching the AOI, keeps the
 clearest acquisition days (all MGRS tiles per day, so seams disappear),

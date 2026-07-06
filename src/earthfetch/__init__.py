@@ -18,6 +18,7 @@ from .exceptions import (
 from .naip import naip_tile_urls, search_naip
 from .sentinel import (
     BAND_ALIASES,
+    BAND_PRESETS,
     BAND_RESOLUTION,
     band_url,
     clearest_scene,
@@ -27,7 +28,7 @@ from .sentinel import (
 )
 from .usgs import DEM_DATASETS, dem_tile_urls, download_dem, search_dem
 
-__version__ = "0.4.0"
+__version__ = "0.5.0"
 
 #: Lazily-imported names that need the raster/xarray extras
 _LAZY = {
@@ -47,6 +48,9 @@ _LAZY = {
     "nbr": "indices",
     "evi": "indices",
     "savi": "indices",
+    "normalized_difference": "indices",
+    "elevation": "load",
+    "show": "export",
     "ndmi": "indices",
     "ndsi": "indices",
     "ndre": "indices",
@@ -56,9 +60,14 @@ _LAZY = {
     "bsi": "indices",
     "INDICES": "indices",
     "load_naip": "naip",
+    "time_series": "timeseries",
     "to_geotiff": "export",
     "to_cog": "export",
     "preview": "export",
+    "to_rioxarray": "interop",
+    "reproject": "interop",
+    "sample": "zonal",
+    "zonal_stats": "zonal",
 }
 
 
@@ -85,14 +94,18 @@ __all__ = [
     "scene_summary", "band_url",
     # arrays (extras)
     "load_dem", "load_sentinel2", "stack", "clip_reproject",
-    "composite", "terrain", "load_naip", "search_naip", "naip_tile_urls",
+    "composite", "terrain", "time_series", "elevation",
+    "load_naip", "search_naip", "naip_tile_urls",
     "ndvi", "ndwi", "nbr", "evi", "savi",
     "ndmi", "ndsi", "ndre", "ndbi", "gndvi", "msavi", "bsi",
-    "to_geotiff", "to_cog", "preview",
+    "normalized_difference",
+    "to_geotiff", "to_cog", "preview", "show",
+    # interop & analysis (extras)
+    "to_rioxarray", "reproject", "sample", "zonal_stats",
     # aoi
     "AOI", "resolve_aoi", "geocode", "utm_crs",
     # metadata
-    "DEM_DATASETS", "BAND_ALIASES", "BAND_RESOLUTION",
+    "DEM_DATASETS", "BAND_ALIASES", "BAND_RESOLUTION", "BAND_PRESETS",
     # exceptions
     "EarthfetchError", "DownloadError", "TileNotFoundError",
     "NoScenesError", "BandNotFoundError", "MissingDependencyError",

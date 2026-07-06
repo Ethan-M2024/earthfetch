@@ -19,7 +19,7 @@ from .aoi import resolve_aoi, resolve_crs
 from .copernicus import copernicus_dem_urls
 from .exceptions import MissingDependencyError, TileNotFoundError
 from .raster import make_grid, warp_into_grid
-from .sentinel import BAND_RESOLUTION, band_url, clearest_scene
+from .sentinel import BAND_RESOLUTION, band_url, clearest_scene, resolve_bands
 from .usgs import dem_tile_urls
 from .utils import logger
 
@@ -147,6 +147,7 @@ def load_sentinel2(
     a = resolve_aoi(bbox)
     bbox = a.bbox
     crs = resolve_crs(crs, bbox)
+    bands = resolve_bands(bands)
     if item is None:
         if start is None or end is None:
             raise ValueError("pass item=... or start=/end= dates")
@@ -206,3 +207,35 @@ def stack(
         ds[str(b)] = s2.sel(band=b).drop_vars("band")
     ds.attrs = {**s2.attrs, "dem_source": dem.attrs["source"], "crs": str(crs)}
     return ds
+
+
+def elevation(points, source: str = "auto", resolution: str = "10m"):
+    """Elevation in meters at one or more ``(lon, lat)`` points.
+
+    The most direct question a DEM answers. Loads a DEM covering the points
+    (USGS in the US, Copernicus elsewhere) and samples it.
+
+    Parameters
+    ----------
+    points : a single ``(lon, lat)``, a list of them, or GeoJSON
+        Point/MultiPoint (WGS84).
+    source : "usgs", "copernicus", or "auto".
+    resolution : DEM resolution when the USGS source is used.
+
+    Returns
+    -------
+    float or numpy.ndarray
+        A float for a single point, else an array of elevations (NaN where
+        outside coverage). Best for nearby points — far-apart points load a
+        DEM spanning their whole bounding box.
+    """
+    from .zonal import _as_points, sample
+
+    pts = _as_points(points)
+    lons = [p[0] for p in pts]
+    lats = [p[1] for p in pts]
+    pad = 0.002
+    bbox = (min(lons) - pad, min(lats) - pad, max(lons) + pad, max(lats) + pad)
+    dem = load_dem(bbox, resolution=resolution, crs="utm", source=source)
+    vals = sample(dem, pts)
+    return float(vals[0]) if len(pts) == 1 else vals

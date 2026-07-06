@@ -22,6 +22,7 @@ from .raster import Resampling, make_grid, mask_to_geometry, warp_into_grid
 from .sentinel import (
     BAND_RESOLUTION,
     band_url,
+    resolve_bands,
     scale_offset,
     search_sentinel2,
 )
@@ -99,6 +100,7 @@ def composite(
     """
     if method not in ("median", "mean", "first"):
         raise ValueError("method must be 'median', 'mean', or 'first'")
+    bands = resolve_bands(bands)
     a = resolve_aoi(aoi)
     crs = resolve_crs(crs, a.bbox)
     items = search_sentinel2(a.bbox, start, end, max_cloud=max_cloud, limit=100)

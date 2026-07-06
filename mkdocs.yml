@@ -37,6 +37,7 @@ nav:
   - Guide:
       - AOIs: aois.md
       - Data sources: sources.md
+      - Time series & analysis: analysis.md
   - API reference: api.md
 
 plugins:

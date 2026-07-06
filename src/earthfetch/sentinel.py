@@ -43,6 +43,34 @@ BAND_RESOLUTION = {
 }
 
 
+#: Named band combinations, so callers can pass bands="false_color"
+#: instead of memorizing ESA ids. Order is display order (R, G, B).
+BAND_PRESETS = {
+    "true_color": ("B04", "B03", "B02"),
+    "natural_color": ("B04", "B03", "B02"),
+    "false_color": ("B08", "B04", "B03"),
+    "color_infrared": ("B08", "B04", "B03"),
+    "agriculture": ("B11", "B08", "B02"),
+    "healthy_vegetation": ("B08", "B11", "B02"),
+    "geology": ("B12", "B11", "B02"),
+    "swir": ("B12", "B08", "B04"),
+}
+
+
+def resolve_bands(bands) -> list:
+    """Expand a preset name or single band id to a list of ESA band ids.
+
+    ``bands`` may be a preset name ("true_color", "false_color", ...), a
+    single band id ("B08"), or any sequence of band ids. Returns a list.
+    """
+    if isinstance(bands, str):
+        key = bands.lower()
+        if key in BAND_PRESETS:
+            return list(BAND_PRESETS[key])
+        return [bands]  # a single band id like "B08"
+    return list(bands)
+
+
 def _asset_key(band: str) -> str:
     return BAND_ALIASES.get(band.upper(), band.lower())
 
