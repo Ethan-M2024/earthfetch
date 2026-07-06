@@ -9,8 +9,9 @@ from __future__ import annotations
 import logging
 import os
 import sys
+from collections.abc import Sequence
 from pathlib import Path
-from typing import Callable, Optional, Sequence, Tuple
+from typing import Callable
 from urllib.parse import urlparse
 
 import requests
@@ -26,7 +27,7 @@ CHUNK = 1024 * 256
 #: Progress callback signature: (filename, bytes_done, bytes_total_or_0)
 ProgressFn = Callable[[str, int, int], None]
 
-_session: Optional[requests.Session] = None
+_session: requests.Session | None = None
 
 
 def get_session() -> requests.Session:
@@ -78,7 +79,7 @@ def print_progress(filename: str, done: int, total: int) -> None:
         print(f"\r{filename}: {done / 1e6:.1f} MB", end="", file=sys.stderr, flush=True)
 
 
-def validate_bbox(bbox: Sequence[float]) -> Tuple[float, float, float, float]:
+def validate_bbox(bbox: Sequence[float]) -> tuple[float, float, float, float]:
     """Validate (min_lon, min_lat, max_lon, max_lat) and return it as a tuple."""
     if len(bbox) != 4:
         raise ValueError("bbox must be (min_lon, min_lat, max_lon, max_lat)")

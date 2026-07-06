@@ -67,8 +67,9 @@ def test_utm_zones():
 
 def _fake_ds():
     shape = (4, 4)
-    mk = lambda v: xr.DataArray(np.full(shape, v, dtype="float32"),
-                                dims=("y", "x"))
+    def mk(v):
+        return xr.DataArray(np.full(shape, v, dtype="float32"),
+                                    dims=("y", "x"))
     return xr.Dataset({"B08": mk(0.5), "B04": mk(0.1), "B03": mk(0.2),
                        "B12": mk(0.2), "B02": mk(0.05)})
 
@@ -134,6 +135,7 @@ def test_day_groups_keep_tiles_together():
 
 def test_to_geotiff_roundtrip(tmp_path):
     import rasterio
+
     from earthfetch.load import _to_dataarray
 
     da = _to_dataarray(
@@ -149,6 +151,7 @@ def test_to_geotiff_roundtrip(tmp_path):
 
 def test_preview_png(tmp_path):
     import rasterio
+
     from earthfetch.load import _to_dataarray
 
     da = _to_dataarray(

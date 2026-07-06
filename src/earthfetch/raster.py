@@ -9,8 +9,8 @@ from __future__ import annotations
 
 import math
 import os
+from collections.abc import Sequence
 from pathlib import Path
-from typing import Sequence, Tuple
 
 import numpy as np
 
@@ -24,7 +24,8 @@ try:
     from rasterio.merge import merge as rio_merge
     from rasterio.transform import Affine, array_bounds, from_origin
     from rasterio.warp import calculate_default_transform, reproject, transform_bounds
-    from rasterio.windows import Window, from_bounds as window_from_bounds
+    from rasterio.windows import Window
+    from rasterio.windows import from_bounds as window_from_bounds
 except ImportError as exc:  # pragma: no cover
     raise MissingDependencyError(
         "rasterio is required for raster operations: pip install earthfetch[raster]"
@@ -40,7 +41,7 @@ _ENV = {
 
 def make_grid(
     bbox: Sequence[float], crs: str, res: float
-) -> Tuple["rasterio.Affine", int, int]:
+) -> tuple[rasterio.Affine, int, int]:
     """Target grid (transform, width, height) for a WGS84 bbox in ``crs``
     at ``res`` (units of ``crs``: meters for projected, degrees for geographic).
     """
@@ -53,14 +54,14 @@ def make_grid(
 
 def warp_into_grid(
     sources: Sequence[str | os.PathLike],
-    transform: "rasterio.Affine",
+    transform: rasterio.Affine,
     width: int,
     height: int,
     crs: str,
     band: int = 1,
     dtype: str = "float32",
     nodata: float = float("nan"),
-    resampling: "Resampling" = None,
+    resampling: Resampling = None,
 ) -> np.ndarray:
     """Read one band from each source (local path or remote COG URL),
     windowed to the target grid's footprint, and mosaic into one array.
@@ -119,7 +120,7 @@ def warp_into_grid(
 def mask_to_geometry(
     data: np.ndarray,
     geometry: dict,
-    transform: "rasterio.Affine",
+    transform: rasterio.Affine,
     crs: str,
     nodata: float = float("nan"),
 ) -> np.ndarray:
@@ -138,7 +139,7 @@ def mask_to_geometry(
 def write_geotiff(
     path: str | os.PathLike,
     data: np.ndarray,
-    transform: "rasterio.Affine",
+    transform: rasterio.Affine,
     crs: str,
     nodata: float | None = None,
     tags: dict | None = None,
@@ -169,7 +170,7 @@ def clip_reproject(
     bbox: Sequence[float],
     dst_crs: str = "EPSG:4326",
     out_path: str | os.PathLike = "clipped.tif",
-    resampling: "Resampling" = None,
+    resampling: Resampling = None,
 ) -> Path:
     """Merge raster tiles, clip to a WGS84 bbox, reproject to ``dst_crs``.
 

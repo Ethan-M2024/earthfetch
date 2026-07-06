@@ -15,8 +15,9 @@ from __future__ import annotations
 import json
 import math
 import os
+from collections.abc import Sequence
 from pathlib import Path
-from typing import NamedTuple, Optional, Sequence, Tuple
+from typing import NamedTuple
 
 from .exceptions import EarthfetchError
 from .utils import get_session, logger, validate_bbox
@@ -27,9 +28,9 @@ NOMINATIM_URL = "https://nominatim.openstreetmap.org/search"
 class AOI(NamedTuple):
     """Resolved area of interest: WGS84 bbox plus optional exact geometry."""
 
-    bbox: Tuple[float, float, float, float]
-    geometry: Optional[dict] = None  # GeoJSON geometry in WGS84, for masking
-    name: Optional[str] = None
+    bbox: tuple[float, float, float, float]
+    geometry: dict | None = None  # GeoJSON geometry in WGS84, for masking
+    name: str | None = None
     #: whether functions should clip to ``geometry`` when clip=None:
     #: True for polygons the user passed explicitly; False for geocoded
     #: place names, where the boundary is incidental and users expect the
@@ -37,7 +38,7 @@ class AOI(NamedTuple):
     clip_default: bool = True
 
 
-def _geom_bounds(geometry: dict) -> Tuple[float, float, float, float]:
+def _geom_bounds(geometry: dict) -> tuple[float, float, float, float]:
     def walk(coords):
         if isinstance(coords[0], (int, float)):
             yield coords

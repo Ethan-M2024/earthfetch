@@ -6,8 +6,13 @@ Requires the ``xarray`` extra.
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    import xarray
+
 from collections import defaultdict
-from typing import Optional, Sequence
+from collections.abc import Sequence
 
 import numpy as np
 
@@ -55,14 +60,14 @@ def composite(
     start: str = None,
     end: str = None,
     crs: str = "utm",
-    res: Optional[float] = None,
+    res: float | None = None,
     method: str = "median",
     mask_clouds: bool = True,
     max_cloud: float = 60.0,
     max_scenes: int = 8,
     scale: bool = True,
     clip: bool = None,
-) -> "xarray.DataArray":
+) -> xarray.DataArray:
     """Cloud-free composite of Sentinel-2 bands over a date range.
 
     Searches every scene touching the AOI, keeps the ``max_scenes`` clearest

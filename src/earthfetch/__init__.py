@@ -5,6 +5,7 @@ Core (requests only): search + download functions.
 ``earthfetch[xarray]``: load_dem, load_sentinel2, stack — bbox in, array out.
 """
 
+from .aoi import AOI, geocode, resolve_aoi, utm_crs
 from .copernicus import copernicus_dem_urls, download_copernicus_dem
 from .exceptions import (
     BandNotFoundError,
@@ -14,6 +15,7 @@ from .exceptions import (
     NoScenesError,
     TileNotFoundError,
 )
+from .naip import naip_tile_urls, search_naip
 from .sentinel import (
     BAND_ALIASES,
     BAND_RESOLUTION,
@@ -24,8 +26,6 @@ from .sentinel import (
     search_sentinel2,
 )
 from .usgs import DEM_DATASETS, dem_tile_urls, download_dem, search_dem
-from .aoi import AOI, geocode, resolve_aoi, utm_crs
-from .naip import naip_tile_urls, search_naip
 
 __version__ = "0.4.0"
 
@@ -77,7 +77,7 @@ __all__ = [
     "scene_summary", "band_url",
     # arrays (extras)
     "load_dem", "load_sentinel2", "stack", "clip_reproject",
-    "composite", "terrain", "load_naip", "search_naip",
+    "composite", "terrain", "load_naip", "search_naip", "naip_tile_urls",
     "ndvi", "ndwi", "nbr", "evi", "savi",
     "to_geotiff", "to_cog", "preview",
     # aoi
