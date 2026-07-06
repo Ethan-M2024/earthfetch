@@ -52,7 +52,27 @@ def _geom_bounds(geometry: dict) -> tuple[float, float, float, float]:
         pts = list(walk(geometry["coordinates"]))
     xs = [p[0] for p in pts]
     ys = [p[1] for p in pts]
-    return (min(xs), min(ys), max(xs), max(ys))
+    return _pad_degenerate(min(xs), min(ys), max(xs), max(ys))
+
+
+#: half-width (deg, ~11 m) used to give a Point or axis-aligned line a
+#: non-zero footprint so it resolves to a valid bbox instead of raising
+_DEGENERATE_PAD = 1e-4
+
+
+def _pad_degenerate(
+    minx: float, miny: float, maxx: float, maxy: float
+) -> tuple[float, float, float, float]:
+    """Expand a zero-width/height extent so ``min < max`` on both axes.
+
+    Points and axis-aligned lines have degenerate bounds; without this a
+    valid AOI (e.g. a shapely ``Point``) would fail ``validate_bbox``.
+    """
+    if maxx <= minx:
+        minx, maxx = minx - _DEGENERATE_PAD, maxx + _DEGENERATE_PAD
+    if maxy <= miny:
+        miny, maxy = miny - _DEGENERATE_PAD, maxy + _DEGENERATE_PAD
+    return (minx, miny, maxx, maxy)
 
 
 def _from_geojson(obj: dict) -> AOI:

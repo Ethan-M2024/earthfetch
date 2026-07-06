@@ -7,10 +7,10 @@ import pytest
 import xarray as xr
 
 import earthfetch as ef
+from earthfetch._composite import _select_day_groups
+from earthfetch._terrain import hillshade, slope_aspect
 from earthfetch.aoi import AOI, resolve_aoi, utm_crs
-from earthfetch.composite import _select_day_groups
 from earthfetch.exceptions import EarthfetchError
-from earthfetch.terrain import hillshade, slope_aspect
 
 BOX = (-111.9, 40.7, -111.8, 40.8)
 POLY = {

@@ -66,7 +66,8 @@ def _collect(obj):
     transform, crs = _georef(obj)
     data = _to_3d(obj)
     if "band" in getattr(obj, "coords", {}):
-        names = [str(b) for b in obj.band.values]
+        # a single selected band (obj.sel(band=...)) leaves a 0-d coord
+        names = [str(b) for b in np.atleast_1d(obj.band.values)]
     else:
         names = [obj.name or "band1"] if data.shape[0] == 1 else [
             f"band{i+1}" for i in range(data.shape[0])

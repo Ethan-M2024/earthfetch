@@ -1,5 +1,24 @@
 # Changelog
 
+## Unreleased
+
+### Added
+- Seven spectral indices: `ndmi`, `ndsi`, `ndre`, `ndbi`, `gndvi`,
+  `msavi`, `bsi` (twelve total).
+- `py.typed` marker so type hints are visible to mypy/pyright.
+- Ruff lint job in CI; version is now single-sourced from `__init__.py`.
+
+### Fixed
+- **`terrain`/`composite` became uncallable after importing the
+  submodule** (`import earthfetch.terrain` shadowed the function with the
+  module, so `ef.terrain(...)` raised "module object is not callable").
+  The implementation modules are now `_terrain`/`_composite`.
+- **Point and axis-aligned-line AOIs crashed** in `validate_bbox`
+  (zero-area bounds). Degenerate geometries are padded to a small valid
+  bbox, so a shapely `Point` resolves like any other AOI.
+- **Exporting/previewing a single selected band** (`da.sel(band=...)`)
+  crashed on the 0-d `band` coordinate.
+
 ## 0.4.0 (2026-07-02)
 
 ### Added

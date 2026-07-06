@@ -38,10 +38,10 @@ _LAZY = {
     "load_dem": "load",
     "load_sentinel2": "load",
     "stack": "load",
-    "composite": "composite",
-    "terrain": "terrain",
-    "slope_aspect": "terrain",
-    "hillshade": "terrain",
+    "composite": "_composite",
+    "terrain": "_terrain",
+    "slope_aspect": "_terrain",
+    "hillshade": "_terrain",
     "ndvi": "indices",
     "ndwi": "indices",
     "nbr": "indices",
@@ -68,9 +68,10 @@ def __getattr__(name):
 
         mod = importlib.import_module(f".{_LAZY[name]}", __name__)
         obj = getattr(mod, name)
-        # cache the resolved object; without this, functions sharing a
-        # submodule's name (composite, terrain) resolve to the module on
-        # the next access, because importing sets it as a package attr
+        # cache the resolved object so later accesses skip the import.
+        # submodules are underscore-prefixed (_composite, _terrain) so a
+        # user's ``import earthfetch.<name>`` can never shadow these
+        # functions in the package namespace.
         globals()[name] = obj
         return obj
     raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
