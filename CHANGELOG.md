@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.6.0 (2026-07-06)
+
+### Changed
+- **Reflectance is now the Sentinel-2 default across the entire array API.**
+  `load_sentinel2` and `stack` scale DNs to surface reflectance (0..1) by
+  default, matching `composite`/`time_series` — so an index like `ndvi`
+  behaves identically no matter which loader produced the data. Pass
+  `scale=False` for raw DNs.
+  **Breaking:** `load_sentinel2` and `stack` previously returned raw DNs.
+
 ## 0.5.1 (2026-07-06)
 
 ### Fixed

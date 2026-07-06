@@ -227,3 +227,61 @@ def test_time_series_no_scenes_raises(monkeypatch):
     monkeypatch.setattr(tsmod, "search_sentinel2", lambda *a, **k: [])
     with pytest.raises(ef.NoScenesError):
         ef.time_series(BBOX, start="2026-05-01", end="2026-05-31")
+
+
+# --------------------------------------------------------------------------
+# reflectance default: load_sentinel2 / stack scale to 0..1 by default
+# --------------------------------------------------------------------------
+
+def _mock_s2_item(band_tif):
+    """A STAC item whose red asset points at a local COG, DN->reflectance
+    scale 1e-4 (as on real Sentinel-2 baseline scenes)."""
+    return {
+        "id": "s2_local",
+        "properties": {"datetime": "2024-06-17T18:00:00Z",
+                       "eo:cloud_cover": 2.0},
+        "assets": {"red": {"href": str(band_tif),
+                           "raster:bands": [{"scale": 1e-4, "offset": 0.0}]}},
+    }
+
+
+def _write_dn_cog(tmp_path):
+    transform, w, h = _grid()
+    tif = tmp_path / "b04.tif"
+    prof = {"driver": "GTiff", "width": w, "height": h, "count": 1,
+            "dtype": "uint16", "crs": CRS, "transform": transform}
+    with rasterio.open(tif, "w", **prof) as d:
+        d.write(np.full((h, w), 2000, "uint16"), 1)   # DN 2000
+    return tif
+
+
+def test_load_sentinel2_reflectance_by_default(tmp_path):
+    tif = _write_dn_cog(tmp_path)
+    item = _mock_s2_item(tif)
+    da = ef.load_sentinel2(BBOX, bands=["B04"], item=item, crs=CRS)
+    # 2000 DN * 1e-4 = 0.2 reflectance
+    assert float(da.sel(band="B04").mean()) == pytest.approx(0.2, abs=1e-3)
+    assert da.attrs["reflectance"] is True
+
+
+def test_load_sentinel2_raw_when_scale_false(tmp_path):
+    tif = _write_dn_cog(tmp_path)
+    item = _mock_s2_item(tif)
+    da = ef.load_sentinel2(BBOX, bands=["B04"], item=item, crs=CRS, scale=False)
+    assert float(da.sel(band="B04").mean()) == pytest.approx(2000.0, abs=1.0)
+    assert da.attrs["reflectance"] is False
+
+
+def test_stack_bands_are_reflectance(tmp_path, monkeypatch):
+    tif = _write_dn_cog(tmp_path)
+    item = _mock_s2_item(tif)
+    transform, w, h = _grid()
+    dem = _to_dataarray(np.full((h, w), 1500.0, "float32"),
+                        transform, w, h, CRS, "dem", {"source": "usgs"})
+
+    import earthfetch.load as loadmod
+    monkeypatch.setattr(loadmod, "load_dem", lambda *a, **k: dem)
+
+    ds = ef.stack(BBOX, crs=CRS, res=10.0, bands=["B04"], item=item)
+    assert float(ds["B04"].mean()) == pytest.approx(0.2, abs=1e-3)  # reflectance
+    assert float(ds["dem"].mean()) == pytest.approx(1500.0)

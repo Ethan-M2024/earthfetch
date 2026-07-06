@@ -19,7 +19,13 @@ from .aoi import resolve_aoi, resolve_crs
 from .copernicus import copernicus_dem_urls
 from .exceptions import MissingDependencyError, TileNotFoundError
 from .raster import make_grid, warp_into_grid
-from .sentinel import BAND_RESOLUTION, band_url, clearest_scene, resolve_bands
+from .sentinel import (
+    BAND_RESOLUTION,
+    band_url,
+    clearest_scene,
+    resolve_bands,
+    scale_offset,
+)
 from .usgs import dem_tile_urls
 from .utils import logger
 
@@ -133,6 +139,7 @@ def load_sentinel2(
     start: str | None = None,
     end: str | None = None,
     max_cloud: float = 20.0,
+    scale: bool = True,
 ) -> xarray.DataArray:
     """Load Sentinel-2 L2A bands for a bbox as one aligned DataArray.
 
@@ -140,6 +147,9 @@ def load_sentinel2(
     ``end`` dates — then the clearest scene in the range is used.
 
     ``res`` defaults to the finest native resolution among ``bands``.
+    ``scale=True`` (default) converts DNs to surface reflectance (0..1)
+    using STAC metadata — matching ``composite``/``time_series`` so indices
+    behave the same on every source; pass ``scale=False`` for raw DNs.
     Returns a float32 DataArray (band, y, x), NaN nodata, with scene
     metadata in attrs. Multi-band assets like TCI are not supported here —
     use ``download_sentinel2`` for those.
@@ -159,10 +169,14 @@ def load_sentinel2(
     logger.info("load_sentinel2: %s %s -> %dx%d @ %s",
                 item["id"], list(bands), width, height, crs)
 
-    layers = [
-        warp_into_grid([band_url(item, b)], transform, width, height, crs)
-        for b in bands
-    ]
+    layers = []
+    for b in bands:
+        layer = warp_into_grid([band_url(item, b)], transform, width, height, crs)
+        if scale:
+            sc, off = scale_offset(item, b)
+            layer = np.where(np.isfinite(layer),
+                             np.maximum(layer * sc + off, 0.0), np.nan)
+        layers.append(layer)
     data = np.stack(layers)
     _xr()
     da = _to_dataarray(
@@ -171,6 +185,7 @@ def load_sentinel2(
             "scene_id": item["id"],
             "datetime": item["properties"].get("datetime"),
             "cloud_cover": item["properties"].get("eo:cloud_cover"),
+            "reflectance": scale,
             "sources": [band_url(item, b) for b in bands],
         },
     )
@@ -188,11 +203,14 @@ def stack(
     item: dict | None = None,
     dem_resolution: str = "10m",
     dem_source: str = "auto",
+    scale: bool = True,
 ) -> xarray.Dataset:
     """DEM + Sentinel-2 bands on one pixel-aligned grid — ML-ready.
 
-    Returns an ``xarray.Dataset`` with a ``dem`` variable plus one variable
-    per band (``B04``, ``B08``, ...), all float32 on the same (y, x) grid.
+    Sentinel-2 bands are surface reflectance (0..1) by default, matching the
+    rest of the array API; pass ``scale=False`` for raw DNs. Returns an
+    ``xarray.Dataset`` with a ``dem`` variable plus one variable per band
+    (``B04``, ``B08``, ...), all float32 on the same (y, x) grid.
     """
     xr = _xr()
     a = resolve_aoi(bbox)
@@ -201,7 +219,7 @@ def stack(
     dem = load_dem(bbox, resolution=dem_resolution, crs=crs, res=res,
                    source=dem_source)
     s2 = load_sentinel2(bbox, bands=bands, crs=crs, res=res, item=item,
-                        start=start, end=end, max_cloud=max_cloud)
+                        start=start, end=end, max_cloud=max_cloud, scale=scale)
     ds = xr.Dataset({"dem": dem})
     for b in s2.band.values:
         ds[str(b)] = s2.sel(band=b).drop_vars("band")

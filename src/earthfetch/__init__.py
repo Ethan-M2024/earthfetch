@@ -28,7 +28,7 @@ from .sentinel import (
 )
 from .usgs import DEM_DATASETS, dem_tile_urls, download_dem, search_dem
 
-__version__ = "0.5.1"
+__version__ = "0.6.0"
 
 #: Lazily-imported names that need the raster/xarray extras
 _LAZY = {
