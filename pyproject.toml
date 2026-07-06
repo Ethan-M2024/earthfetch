@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "earthfetch"
-version = "0.2.0"
+dynamic = ["version"]
 description = "Download USGS 3DEP DEMs and Sentinel-2 L2A imagery with zero API keys"
 readme = "README.md"
 license = "MIT"
@@ -23,7 +23,19 @@ dependencies = ["requests>=2.25"]
 raster = ["rasterio>=1.3"]
 xarray = ["rasterio>=1.3", "xarray>=2023.1"]
 all = ["rasterio>=1.3", "xarray>=2023.1"]
-dev = ["pytest>=7", "responses>=0.23", "rasterio>=1.3", "xarray>=2023.1"]
+dev = ["pytest>=7", "responses>=0.23", "rasterio>=1.3", "xarray>=2023.1",
+       "ruff>=0.4", "hypothesis>=6"]
+docs = ["mkdocs-material>=9.5", "mkdocstrings[python]>=0.24"]
+
+[tool.hatch.version]
+path = "src/earthfetch/__init__.py"
+
+[tool.ruff]
+line-length = 100
+target-version = "py39"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "UP", "B"]
 
 [project.scripts]
 earthfetch = "earthfetch.cli:main"

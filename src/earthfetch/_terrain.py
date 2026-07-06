@@ -6,6 +6,11 @@ default CRS is the AOI's UTM zone.
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    import xarray
+
 import numpy as np
 
 from .aoi import resolve_aoi, resolve_crs
@@ -53,7 +58,7 @@ def terrain(
     azimuth: float = 315.0,
     altitude: float = 45.0,
     clip: bool = None,
-) -> "xarray.Dataset":
+) -> xarray.Dataset:
     """DEM + terrain derivatives for any AOI as an aligned Dataset.
 
     ``products`` chooses among "dem" (meters), "slope" (degrees), "aspect"

@@ -8,9 +8,9 @@ from __future__ import annotations
 
 import math
 import os
+from collections.abc import Sequence
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
-from typing import List, Sequence
 
 from .exceptions import TileNotFoundError
 from .utils import ProgressFn, download_file, get_session, logger, validate_bbox
@@ -24,7 +24,7 @@ def _tile_name(lat: int, lon: int) -> str:
     return f"Copernicus_DSM_COG_10_{ns}{abs(lat):02d}_00_{ew}{abs(lon):03d}_00_DEM"
 
 
-def copernicus_dem_urls(bbox: Sequence[float]) -> List[str]:
+def copernicus_dem_urls(bbox: Sequence[float]) -> list[str]:
     """COG URLs for GLO-30 tiles covering a bbox. Ocean-only tiles are
     absent from the bucket and are silently skipped (checked via HEAD).
 
@@ -53,7 +53,7 @@ def download_copernicus_dem(
     overwrite: bool = False,
     workers: int = 4,
     progress: ProgressFn | None = None,
-) -> List[Path]:
+) -> list[Path]:
     """Download GLO-30 tiles covering a bbox. Returns local paths."""
     urls = copernicus_dem_urls(bbox)
     with ThreadPoolExecutor(max_workers=workers) as pool:

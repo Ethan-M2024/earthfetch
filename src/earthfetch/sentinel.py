@@ -7,9 +7,9 @@ API:  https://earth-search.aws.element84.com/v1
 from __future__ import annotations
 
 import os
+from collections.abc import Sequence
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
-from typing import Dict, List, Sequence
 
 from .exceptions import BandNotFoundError, NoScenesError
 from .utils import ProgressFn, download_file, get_session, logger, validate_bbox
@@ -82,7 +82,7 @@ def search_sentinel2(
     end: str,
     max_cloud: float = 20.0,
     limit: int = 50,
-) -> List[dict]:
+) -> list[dict]:
     """Search Sentinel-2 L2A scenes.
 
     Parameters
@@ -92,8 +92,11 @@ def search_sentinel2(
     max_cloud : maximum scene cloud cover percent.
     limit : cap on returned scenes.
 
-    Returns STAC item dicts sorted by cloud cover (clearest first). Each has
-    ``id``, ``properties`` (datetime, eo:cloud_cover, ...) and ``assets``.
+    Returns
+    -------
+    list of dict
+        STAC item dicts sorted by cloud cover (clearest first). Each has
+        ``id``, ``properties`` (datetime, eo:cloud_cover, ...) and ``assets``.
     """
     bbox = validate_bbox(bbox)
     session = get_session()
@@ -104,14 +107,14 @@ def search_sentinel2(
         "limit": min(limit, 100),
         "query": {"eo:cloud_cover": {"lt": max_cloud}},
     }
-    items: List[dict] = []
+    items: list[dict] = []
     while len(items) < limit:
         resp = session.post(STAC_URL, json=body, timeout=60)
         resp.raise_for_status()
         page = resp.json()
         items.extend(page.get("features", []))
         nxt = next(
-            (l for l in page.get("links", []) if l.get("rel") == "next"), None
+            (lnk for lnk in page.get("links", []) if lnk.get("rel") == "next"), None
         )
         if nxt is None or not page.get("features"):
             break
@@ -143,7 +146,7 @@ def download_sentinel2(
     overwrite: bool = False,
     workers: int = 4,
     progress: ProgressFn | None = None,
-) -> Dict[str, Path]:
+) -> dict[str, Path]:
     """Download selected bands of one STAC item as GeoTIFFs, in parallel.
 
     ``bands`` accepts ESA ids ("B04", "B08", "TCI", "SCL") or Earth Search

@@ -5,6 +5,7 @@ Core (requests only): search + download functions.
 ``earthfetch[xarray]``: load_dem, load_sentinel2, stack — bbox in, array out.
 """
 
+from .aoi import AOI, geocode, resolve_aoi, utm_crs
 from .copernicus import copernicus_dem_urls, download_copernicus_dem
 from .exceptions import (
     BandNotFoundError,
@@ -14,6 +15,7 @@ from .exceptions import (
     NoScenesError,
     TileNotFoundError,
 )
+from .naip import naip_tile_urls, search_naip
 from .sentinel import (
     BAND_ALIASES,
     BAND_RESOLUTION,
@@ -24,8 +26,6 @@ from .sentinel import (
     search_sentinel2,
 )
 from .usgs import DEM_DATASETS, dem_tile_urls, download_dem, search_dem
-from .aoi import AOI, geocode, resolve_aoi, utm_crs
-from .naip import naip_tile_urls, search_naip
 
 __version__ = "0.4.0"
 
@@ -38,15 +38,22 @@ _LAZY = {
     "load_dem": "load",
     "load_sentinel2": "load",
     "stack": "load",
-    "composite": "composite",
-    "terrain": "terrain",
-    "slope_aspect": "terrain",
-    "hillshade": "terrain",
+    "composite": "_composite",
+    "terrain": "_terrain",
+    "slope_aspect": "_terrain",
+    "hillshade": "_terrain",
     "ndvi": "indices",
     "ndwi": "indices",
     "nbr": "indices",
     "evi": "indices",
     "savi": "indices",
+    "ndmi": "indices",
+    "ndsi": "indices",
+    "ndre": "indices",
+    "ndbi": "indices",
+    "gndvi": "indices",
+    "msavi": "indices",
+    "bsi": "indices",
     "INDICES": "indices",
     "load_naip": "naip",
     "to_geotiff": "export",
@@ -61,9 +68,10 @@ def __getattr__(name):
 
         mod = importlib.import_module(f".{_LAZY[name]}", __name__)
         obj = getattr(mod, name)
-        # cache the resolved object; without this, functions sharing a
-        # submodule's name (composite, terrain) resolve to the module on
-        # the next access, because importing sets it as a package attr
+        # cache the resolved object so later accesses skip the import.
+        # submodules are underscore-prefixed (_composite, _terrain) so a
+        # user's ``import earthfetch.<name>`` can never shadow these
+        # functions in the package namespace.
         globals()[name] = obj
         return obj
     raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
@@ -77,8 +85,9 @@ __all__ = [
     "scene_summary", "band_url",
     # arrays (extras)
     "load_dem", "load_sentinel2", "stack", "clip_reproject",
-    "composite", "terrain", "load_naip", "search_naip",
+    "composite", "terrain", "load_naip", "search_naip", "naip_tile_urls",
     "ndvi", "ndwi", "nbr", "evi", "savi",
+    "ndmi", "ndsi", "ndre", "ndbi", "gndvi", "msavi", "bsi",
     "to_geotiff", "to_cog", "preview",
     # aoi
     "AOI", "resolve_aoi", "geocode", "utm_crs",

@@ -8,8 +8,13 @@ STAC: https://planetarycomputer.microsoft.com/api/stac/v1 (collection "naip")
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    import xarray
+
 import time
-from typing import List, Optional, Sequence
+from collections.abc import Sequence
 
 from .exceptions import TileNotFoundError
 from .utils import get_session, logger
@@ -32,7 +37,7 @@ def _sas_token() -> str:
         _token["value"] = data["token"]
         expiry = data.get("msft:expiry", "")
         try:
-            from datetime import datetime, timezone
+            from datetime import datetime
 
             dt = datetime.fromisoformat(expiry.replace("Z", "+00:00"))
             _token["expires"] = dt.timestamp()
@@ -50,9 +55,9 @@ def sign_url(href: str) -> str:
 
 def search_naip(
     bbox: Sequence[float],
-    year: Optional[int] = None,
+    year: int | None = None,
     limit: int = 100,
-) -> List[dict]:
+) -> list[dict]:
     """NAIP STAC items covering a bbox, newest first.
 
     ``year`` pins a specific survey year; default returns all years
@@ -74,8 +79,8 @@ def search_naip(
 
 
 def naip_tile_urls(
-    bbox: Sequence[float], year: Optional[int] = None
-) -> List[str]:
+    bbox: Sequence[float], year: int | None = None
+) -> list[str]:
     """Signed COG URLs covering a bbox — the newest acquisition per quad.
 
     NAIP quads are reflown every ~2 years; keeping only the newest per
@@ -98,10 +103,10 @@ def load_naip(
     aoi,
     bands: Sequence[str] = ("R", "G", "B"),
     crs: str = "utm",
-    res: Optional[float] = None,
-    year: Optional[int] = None,
-    clip: Optional[bool] = None,
-) -> "xarray.DataArray":
+    res: float | None = None,
+    year: int | None = None,
+    clip: bool | None = None,
+) -> xarray.DataArray:
     """US aerial imagery for any AOI as an ``xarray.DataArray``.
 
     Parameters
@@ -114,7 +119,10 @@ def load_naip(
     clip : NaN-out pixels outside a polygon AOI. Defaults to True for
         polygons you pass explicitly, False for geocoded place names.
 
-    Returns a float32 DataArray (band, y, x) of 0-255 values, NaN nodata.
+    Returns
+    -------
+    xarray.DataArray
+        float32 (band, y, x) of 0-255 values, NaN nodata.
     """
     import numpy as np
 

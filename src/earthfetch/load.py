@@ -6,16 +6,21 @@ Reads only the bbox window from remote COGs via HTTP range requests.
 
 from __future__ import annotations
 
-from typing import Optional, Sequence
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    import xarray
+
+from collections.abc import Sequence
 
 import numpy as np
 
+from .aoi import resolve_aoi, resolve_crs
 from .copernicus import copernicus_dem_urls
 from .exceptions import MissingDependencyError, TileNotFoundError
 from .raster import make_grid, warp_into_grid
 from .sentinel import BAND_RESOLUTION, band_url, clearest_scene
 from .usgs import dem_tile_urls
-from .aoi import resolve_aoi, resolve_crs
 from .utils import logger
 
 #: meters per degree at the equator, for geographic-CRS resolution defaults
@@ -41,7 +46,7 @@ def _is_geographic(crs: str) -> bool:
     return CRS.from_user_input(crs).is_geographic
 
 
-def _resolve_res(res: Optional[float], native_m: float, crs: str) -> float:
+def _resolve_res(res: float | None, native_m: float, crs: str) -> float:
     if res is not None:
         return float(res)
     return native_m / _M_PER_DEG if _is_geographic(crs) else native_m
@@ -67,9 +72,9 @@ def load_dem(
     bbox: Sequence[float],
     resolution: str = "10m",
     crs: str = "EPSG:4326",
-    res: Optional[float] = None,
+    res: float | None = None,
     source: str = "auto",
-) -> "xarray.DataArray":
+) -> xarray.DataArray:
     """Load a DEM for a bbox as an ``xarray.DataArray`` — no files, no keys.
 
     Parameters
@@ -83,8 +88,11 @@ def load_dem(
     source : "usgs", "copernicus", or "auto" (USGS first, Copernicus
         fallback outside the US).
 
-    Returns a float32 DataArray (y, x) of elevation in meters, NaN nodata,
-    with ``crs``, ``transform`` and ``sources`` attrs.
+    Returns
+    -------
+    xarray.DataArray
+        float32 (y, x) elevation in meters, NaN nodata, with ``crs``,
+        ``transform`` and ``sources`` attrs.
     """
     a = resolve_aoi(bbox)
     bbox = a.bbox
@@ -120,12 +128,12 @@ def load_sentinel2(
     bbox: Sequence[float],
     bands: Sequence[str] = ("B04", "B03", "B02"),
     crs: str = "EPSG:4326",
-    res: Optional[float] = None,
-    item: Optional[dict] = None,
-    start: Optional[str] = None,
-    end: Optional[str] = None,
+    res: float | None = None,
+    item: dict | None = None,
+    start: str | None = None,
+    end: str | None = None,
     max_cloud: float = 20.0,
-) -> "xarray.DataArray":
+) -> xarray.DataArray:
     """Load Sentinel-2 L2A bands for a bbox as one aligned DataArray.
 
     Pass either a STAC ``item`` (from ``search_sentinel2``) or ``start``/
@@ -155,7 +163,7 @@ def load_sentinel2(
         for b in bands
     ]
     data = np.stack(layers)
-    xr = _xr()
+    _xr()
     da = _to_dataarray(
         data, transform, width, height, crs, "sentinel2",
         {
@@ -173,13 +181,13 @@ def stack(
     crs: str,
     res: float,
     bands: Sequence[str] = ("B04", "B08"),
-    start: Optional[str] = None,
-    end: Optional[str] = None,
+    start: str | None = None,
+    end: str | None = None,
     max_cloud: float = 20.0,
-    item: Optional[dict] = None,
+    item: dict | None = None,
     dem_resolution: str = "10m",
     dem_source: str = "auto",
-) -> "xarray.Dataset":
+) -> xarray.Dataset:
     """DEM + Sentinel-2 bands on one pixel-aligned grid — ML-ready.
 
     Returns an ``xarray.Dataset`` with a ``dem`` variable plus one variable

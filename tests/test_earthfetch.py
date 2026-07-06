@@ -1,8 +1,8 @@
 import pytest
 
 from earthfetch.copernicus import _tile_name
-from earthfetch.sentinel import _asset_key, band_url, scene_summary
 from earthfetch.exceptions import BandNotFoundError
+from earthfetch.sentinel import _asset_key, band_url, scene_summary
 from earthfetch.utils import validate_bbox
 
 

@@ -7,3 +7,6 @@ dem/
 sentinel2/
 fetched/
 *.tif
+
+# mkdocs build output
+site/

@@ -15,8 +15,9 @@ from __future__ import annotations
 import json
 import math
 import os
+from collections.abc import Sequence
 from pathlib import Path
-from typing import NamedTuple, Optional, Sequence, Tuple
+from typing import NamedTuple
 
 from .exceptions import EarthfetchError
 from .utils import get_session, logger, validate_bbox
@@ -27,9 +28,9 @@ NOMINATIM_URL = "https://nominatim.openstreetmap.org/search"
 class AOI(NamedTuple):
     """Resolved area of interest: WGS84 bbox plus optional exact geometry."""
 
-    bbox: Tuple[float, float, float, float]
-    geometry: Optional[dict] = None  # GeoJSON geometry in WGS84, for masking
-    name: Optional[str] = None
+    bbox: tuple[float, float, float, float]
+    geometry: dict | None = None  # GeoJSON geometry in WGS84, for masking
+    name: str | None = None
     #: whether functions should clip to ``geometry`` when clip=None:
     #: True for polygons the user passed explicitly; False for geocoded
     #: place names, where the boundary is incidental and users expect the
@@ -37,7 +38,7 @@ class AOI(NamedTuple):
     clip_default: bool = True
 
 
-def _geom_bounds(geometry: dict) -> Tuple[float, float, float, float]:
+def _geom_bounds(geometry: dict) -> tuple[float, float, float, float]:
     def walk(coords):
         if isinstance(coords[0], (int, float)):
             yield coords
@@ -51,7 +52,27 @@ def _geom_bounds(geometry: dict) -> Tuple[float, float, float, float]:
         pts = list(walk(geometry["coordinates"]))
     xs = [p[0] for p in pts]
     ys = [p[1] for p in pts]
-    return (min(xs), min(ys), max(xs), max(ys))
+    return _pad_degenerate(min(xs), min(ys), max(xs), max(ys))
+
+
+#: half-width (deg, ~11 m) used to give a Point or axis-aligned line a
+#: non-zero footprint so it resolves to a valid bbox instead of raising
+_DEGENERATE_PAD = 1e-4
+
+
+def _pad_degenerate(
+    minx: float, miny: float, maxx: float, maxy: float
+) -> tuple[float, float, float, float]:
+    """Expand a zero-width/height extent so ``min < max`` on both axes.
+
+    Points and axis-aligned lines have degenerate bounds; without this a
+    valid AOI (e.g. a shapely ``Point``) would fail ``validate_bbox``.
+    """
+    if maxx <= minx:
+        minx, maxx = minx - _DEGENERATE_PAD, maxx + _DEGENERATE_PAD
+    if maxy <= miny:
+        miny, maxy = miny - _DEGENERATE_PAD, maxy + _DEGENERATE_PAD
+    return (minx, miny, maxx, maxy)
 
 
 def _from_geojson(obj: dict) -> AOI:

@@ -1,6 +1,5 @@
 """HTTP-mocked tests — run in CI with no network."""
 
-import json
 
 import pytest
 import responses

@@ -6,9 +6,9 @@ API docs: https://tnmaccess.nationalmap.gov/api/v1/docs
 from __future__ import annotations
 
 import os
+from collections.abc import Sequence
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
-from typing import List, Sequence
 
 from .exceptions import TileNotFoundError
 from .utils import ProgressFn, download_file, get_session, logger, validate_bbox
@@ -28,7 +28,7 @@ def search_dem(
     bbox: Sequence[float],
     resolution: str = "10m",
     max_items: int = 100,
-) -> List[dict]:
+) -> list[dict]:
     """Find 3DEP DEM tiles intersecting a bbox.
 
     Parameters
@@ -37,15 +37,18 @@ def search_dem(
     resolution : one of ``DEM_DATASETS`` keys ("1m", "10m", "30m", "5m-ak").
     max_items : cap on returned tiles.
 
-    Returns a list of product dicts with ``title``, ``downloadURL``,
-    ``sizeInBytes``, ``boundingBox`` and other TNM metadata.
+    Returns
+    -------
+    list of dict
+        Product dicts with ``title``, ``downloadURL``, ``sizeInBytes``,
+        ``boundingBox`` and other TNM metadata.
     """
     if resolution not in DEM_DATASETS:
         raise ValueError(f"resolution must be one of {sorted(DEM_DATASETS)}")
     bbox = validate_bbox(bbox)
 
     session = get_session()
-    items: List[dict] = []
+    items: list[dict] = []
     offset = 0
     while len(items) < max_items:
         params = {
@@ -72,7 +75,7 @@ def dem_tile_urls(
     bbox: Sequence[float],
     resolution: str = "10m",
     max_items: int = 100,
-) -> List[str]:
+) -> list[str]:
     """Direct GeoTIFF URLs for tiles covering a bbox (newest tile per area).
 
     USGS republishes tiles; when several products share a title prefix the
@@ -98,7 +101,7 @@ def download_dem(
     overwrite: bool = False,
     workers: int = 4,
     progress: ProgressFn | None = None,
-) -> List[Path]:
+) -> list[Path]:
     """Download DEM tiles covering a bbox in parallel. Returns local paths.
 
     Tiles already on disk are skipped, so calls are resumable. ``out_dir``
