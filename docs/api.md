@@ -85,6 +85,14 @@ Requires `earthfetch[raster]`.
 
 ::: earthfetch.raster.clip_reproject
 
+## Cache
+
+::: earthfetch.utils.cache_dir
+
+::: earthfetch.utils.cache_info
+
+::: earthfetch.utils.clear_cache
+
 ## Exceptions
 
 ::: earthfetch.exceptions.EarthfetchError

@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import logging
 import os
+import shutil
 import sys
 from collections.abc import Sequence
 from pathlib import Path
@@ -31,14 +32,19 @@ _session: requests.Session | None = None
 
 
 def get_session() -> requests.Session:
-    """Shared Session with connection pooling and retry/backoff."""
+    """Shared Session with connection pooling and retry/backoff.
+
+    Retry count and backoff are read once from ``EARTHFETCH_HTTP_RETRIES``
+    (default 4) and ``EARTHFETCH_HTTP_BACKOFF`` (default 1.0). Retries fire
+    on connection errors and on 429/500/502/503/504.
+    """
     global _session
     if _session is None:
         from . import __version__
 
         retry = Retry(
-            total=4,
-            backoff_factor=1.0,
+            total=int(os.environ.get("EARTHFETCH_HTTP_RETRIES", "4")),
+            backoff_factor=float(os.environ.get("EARTHFETCH_HTTP_BACKOFF", "1.0")),
             status_forcelist=[429, 500, 502, 503, 504],
             allowed_methods=["HEAD", "GET", "POST"],
         )
@@ -63,6 +69,36 @@ def get_cache_dir() -> Path:
     else:
         base = Path(os.environ.get("XDG_CACHE_HOME", Path.home() / ".cache"))
     return base / "earthfetch"
+
+
+def cache_dir() -> Path:
+    """The directory earthfetch caches downloads in.
+
+    Overridable with the ``EARTHFETCH_CACHE`` environment variable.
+    """
+    return get_cache_dir()
+
+
+def cache_info() -> dict:
+    """Inspect the cache: ``{"path": str, "files": int, "bytes": int}``."""
+    root = get_cache_dir()
+    files = [f for f in root.rglob("*") if f.is_file()] if root.exists() else []
+    return {
+        "path": str(root),
+        "files": len(files),
+        "bytes": sum(f.stat().st_size for f in files),
+    }
+
+
+def clear_cache() -> int:
+    """Delete everything in the earthfetch cache. Returns bytes freed."""
+    root = get_cache_dir()
+    if not root.exists():
+        return 0
+    freed = sum(f.stat().st_size for f in root.rglob("*") if f.is_file())
+    shutil.rmtree(root, ignore_errors=True)
+    logger.info("cleared earthfetch cache (%s): %.1f MB freed", root, freed / 1e6)
+    return freed
 
 
 def print_progress(filename: str, done: int, total: int) -> None:

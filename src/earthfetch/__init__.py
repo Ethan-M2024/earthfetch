@@ -27,8 +27,9 @@ from .sentinel import (
     search_sentinel2,
 )
 from .usgs import DEM_DATASETS, dem_tile_urls, download_dem, search_dem
+from .utils import cache_dir, cache_info, clear_cache
 
-__version__ = "0.6.1"
+__version__ = "0.7.0"
 
 #: Lazily-imported names that need the raster/xarray extras
 _LAZY = {
@@ -134,6 +135,8 @@ __all__ = [
     "to_rioxarray", "reproject", "sample", "zonal_stats",
     # aoi
     "AOI", "resolve_aoi", "geocode", "utm_crs",
+    # cache
+    "cache_dir", "cache_info", "clear_cache",
     # metadata
     "DEM_DATASETS", "BAND_ALIASES", "BAND_RESOLUTION", "BAND_PRESETS",
     # exceptions

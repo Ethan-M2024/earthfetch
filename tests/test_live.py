@@ -18,7 +18,7 @@ def test_search_dem_live():
 def test_search_sentinel2_live():
     from earthfetch import search_sentinel2
 
-    items = search_sentinel2(BBOX, "2026-05-01", "2026-06-01", max_cloud=50)
+    items = search_sentinel2(BBOX, "2024-05-01", "2024-07-31", max_cloud=50)
     assert items
     clouds = [i["properties"]["eo:cloud_cover"] for i in items]
     assert clouds == sorted(clouds)
@@ -48,7 +48,7 @@ def test_stack_aligned():
     from earthfetch import stack
 
     ds = stack(BBOX, crs="EPSG:32612", res=60, bands=["B04", "B08"],
-               start="2026-05-01", end="2026-06-01")
+               start="2024-05-01", end="2024-07-31")
     assert set(ds.data_vars) == {"dem", "B04", "B08"}
     assert ds.dem.shape == ds.B04.shape == ds.B08.shape
     ndvi = (ds.B08 - ds.B04) / (ds.B08 + ds.B04)
@@ -59,7 +59,7 @@ def test_composite_place_name_live():
     import earthfetch as ef
 
     da = ef.composite("Moab, Utah", bands=["B04"], res=60,
-                      start="2026-05-01", end="2026-06-01", max_scenes=2)
+                      start="2024-05-01", end="2024-07-31", max_scenes=2)
     assert da.attrs["crs"] == "EPSG:32612"
     assert da.attrs["aoi_name"]  # geocoded
     assert np.isfinite(da.values).any()

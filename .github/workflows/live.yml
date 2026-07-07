@@ -1,0 +1,20 @@
+name: Live integration
+
+# Exercises the real APIs (USGS, Earth Search, Copernicus, Planetary
+# Computer). Runs weekly and on demand — not on every push, so third-party
+# outages never block PRs or releases.
+on:
+  schedule:
+    - cron: "0 6 * * 1" # Mondays 06:00 UTC
+  workflow_dispatch:
+
+jobs:
+  live:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -e ".[dev]"
+      - run: pytest -m network -q

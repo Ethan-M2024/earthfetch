@@ -10,3 +10,7 @@ fetched/
 
 # mkdocs build output
 site/
+
+# coverage
+.coverage
+htmlcov/

@@ -1,5 +1,25 @@
 # Changelog
 
+## 0.7.0 (2026-07-06)
+
+A production-hardening release: no breaking changes, focused on the things
+that matter once earthfetch is more than a toy.
+
+### Added
+- **Cache management API**: `cache_dir()`, `cache_info()`, and
+  `clear_cache()` to inspect and purge the download cache.
+- **Configurable retries**: `EARTHFETCH_HTTP_RETRIES` and
+  `EARTHFETCH_HTTP_BACKOFF` tune both the HTTP session and the GDAL layer.
+- **GDAL-level retries for windowed COG reads.** Windowed reads bypass the
+  requests session, so GDAL now retries on its own (previously a transient
+  failure mid-`composite` was not retried).
+- Docs: an [API stability policy](https://ethan-m2024.github.io/earthfetch/stability/),
+  [benchmarks](https://ethan-m2024.github.io/earthfetch/benchmarks/), and a
+  [caching & configuration](https://ethan-m2024.github.io/earthfetch/caching/)
+  guide.
+- CI: test coverage reporting (~80%) and a weekly live-integration workflow
+  that exercises the real APIs off the release path.
+
 ## 0.6.1 (2026-07-06)
 
 ### Fixed

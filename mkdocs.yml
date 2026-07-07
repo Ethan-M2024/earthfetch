@@ -38,6 +38,10 @@ nav:
       - AOIs: aois.md
       - Data sources: sources.md
       - Time series & analysis: analysis.md
+  - Production:
+      - Caching & configuration: caching.md
+      - Performance & benchmarks: benchmarks.md
+      - API stability: stability.md
   - API reference: api.md
 
 plugins:

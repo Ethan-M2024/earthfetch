@@ -31,11 +31,15 @@ except ImportError as exc:  # pragma: no cover
         "rasterio is required for raster operations: pip install earthfetch[raster]"
     ) from exc
 
-#: GDAL settings that make remote COG reads fast
+#: GDAL settings that make remote COG reads fast and resilient. The retry
+#: keys matter because windowed COG reads bypass the requests Session (and
+#: its retry/backoff); GDAL does its own HTTP, so it needs its own retries.
 _ENV = {
     "GDAL_DISABLE_READDIR_ON_OPEN": "EMPTY_DIR",
     "GDAL_HTTP_MERGE_CONSECUTIVE_RANGES": "YES",
     "AWS_NO_SIGN_REQUEST": "YES",
+    "GDAL_HTTP_MAX_RETRY": os.environ.get("EARTHFETCH_HTTP_RETRIES", "4"),
+    "GDAL_HTTP_RETRY_DELAY": os.environ.get("EARTHFETCH_HTTP_BACKOFF", "1"),
 }
 
 
