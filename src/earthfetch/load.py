@@ -100,6 +100,7 @@ def load_dem(
         float32 (y, x) elevation in meters, NaN nodata, with ``crs``,
         ``transform`` and ``sources`` attrs.
     """
+    _xr()  # fail fast on missing xarray, before any network work
     a = resolve_aoi(bbox)
     bbox = a.bbox
     crs = resolve_crs(crs, bbox)
@@ -154,6 +155,7 @@ def load_sentinel2(
     metadata in attrs. Multi-band assets like TCI are not supported here —
     use ``download_sentinel2`` for those.
     """
+    _xr()  # fail fast on missing xarray, before any network work
     a = resolve_aoi(bbox)
     bbox = a.bbox
     crs = resolve_crs(crs, bbox)
@@ -178,7 +180,6 @@ def load_sentinel2(
                              np.maximum(layer * sc + off, 0.0), np.nan)
         layers.append(layer)
     data = np.stack(layers)
-    _xr()
     da = _to_dataarray(
         data, transform, width, height, crs, "sentinel2",
         {

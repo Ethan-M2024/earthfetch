@@ -79,6 +79,16 @@ def print_progress(filename: str, done: int, total: int) -> None:
         print(f"\r{filename}: {done / 1e6:.1f} MB", end="", file=sys.stderr, flush=True)
 
 
+def redact_url(url: str) -> str:
+    """Drop the query string from a URL for safe logging.
+
+    Signed URLs (e.g. NAIP SAS tokens, S3 presigned links) carry credentials
+    in the query string; never write those to logs.
+    """
+    base, sep, _ = str(url).partition("?")
+    return f"{base}?…" if sep else base
+
+
 def validate_bbox(bbox: Sequence[float]) -> tuple[float, float, float, float]:
     """Validate (min_lon, min_lat, max_lon, max_lat) and return it as a tuple."""
     if len(bbox) != 4:
@@ -118,7 +128,7 @@ def download_file(
 
     sess = session or get_session()
     tmp = dest.with_suffix(dest.suffix + ".part")
-    logger.info("downloading %s -> %s", url, dest)
+    logger.info("downloading %s -> %s", redact_url(url), dest)
     try:
         with sess.get(url, stream=True, timeout=timeout) as resp:
             resp.raise_for_status()

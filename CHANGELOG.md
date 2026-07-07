@@ -1,5 +1,27 @@
 # Changelog
 
+## 0.6.1 (2026-07-06)
+
+### Fixed
+- **Wrong extra named when a nested dependency was missing.** On an
+  environment with numpy but no rasterio (a common data-science base),
+  `ef.composite` (and the other array functions) reported
+  `pip install earthfetch[raster]` — the wrong extra; they need `[xarray]`.
+  The lazy loader passed a submodule's own `MissingDependencyError` through
+  unchanged; it now always names the extra mapped to the requested
+  function's module (`[xarray]` is a superset of `[raster]`).
+- **Missing-dependency failures now happen before any network work.**
+  `composite`, `load_dem`, `load_sentinel2`, and `load_naip` checked for
+  xarray only at the end (in `_to_dataarray`), so a missing dep failed after
+  the STAC search and the full download/warp of every scene. They now fail
+  fast, up front.
+
+### Security
+- Redact URL query strings from logs. Signed URLs (NAIP SAS tokens, S3
+  presigned links) carry credentials in the query string; these were
+  written to debug logs by the windowed reader. Added a `semgrep` job to CI
+  (currently clean).
+
 ## 0.6.0 (2026-07-06)
 
 ### Changed

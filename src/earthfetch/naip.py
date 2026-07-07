@@ -43,7 +43,7 @@ def _sas_token() -> str:
             _token["expires"] = dt.timestamp()
         except ValueError:
             _token["expires"] = time.time() + 1800
-        logger.debug("fetched NAIP SAS token, expires %s", expiry)
+        logger.debug("refreshed NAIP access; expires %s", expiry)
     return _token["value"]
 
 
@@ -124,11 +124,25 @@ def load_naip(
     xarray.DataArray
         float32 (band, y, x) of 0-255 values, NaN nodata.
     """
-    import numpy as np
-
     from .aoi import resolve_aoi, resolve_crs
-    from .load import _resolve_res, _to_dataarray
-    from .raster import make_grid, mask_to_geometry, warp_into_grid
+
+    # heavy deps are imported here (not at module top) so the requests-only
+    # search_naip/naip_tile_urls stay importable on a core install; guard
+    # them so a missing dep names the right extra and fails before any network
+    try:
+        import numpy as np
+
+        from .load import _resolve_res, _to_dataarray, _xr
+        from .raster import make_grid, mask_to_geometry, warp_into_grid
+
+        _xr()
+    except ImportError as exc:
+        from .exceptions import MissingDependencyError
+
+        raise MissingDependencyError(
+            "'load_naip' needs the optional 'xarray' dependencies; "
+            "install with: pip install 'earthfetch[xarray]'"
+        ) from exc
 
     a = resolve_aoi(aoi)
     crs = resolve_crs(crs, a.bbox)

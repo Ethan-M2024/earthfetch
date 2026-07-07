@@ -28,7 +28,7 @@ from .sentinel import (
 )
 from .usgs import DEM_DATASETS, dem_tile_urls, download_dem, search_dem
 
-__version__ = "0.6.0"
+__version__ = "0.6.1"
 
 #: Lazily-imported names that need the raster/xarray extras
 _LAZY = {
@@ -93,9 +93,14 @@ def __getattr__(name):
         modname = _LAZY[name]
         try:
             mod = importlib.import_module(f".{modname}", __name__)
-        except MissingDependencyError:
-            raise  # the submodule already produced a helpful message
         except ImportError as exc:
+            # Catch both a plain ImportError (e.g. numpy missing) and a
+            # nested MissingDependencyError raised by a submodule (e.g.
+            # rasterio missing). Always name the extra mapped to THIS
+            # function's module, never the nested message's extra: a nested
+            # rasterio failure while importing ``_composite`` must still tell
+            # the user to install [xarray] (a superset of [raster]), not
+            # [raster], which would omit xarray and fail again later.
             extra = _EXTRA_FOR_MODULE.get(modname, "all")
             raise MissingDependencyError(
                 f"{name!r} needs the optional {extra!r} dependencies; "

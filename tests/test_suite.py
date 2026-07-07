@@ -803,6 +803,18 @@ def test_download_connection_error_cleans_part(tmp_path):
 # cache dir
 # --------------------------------------------------------------------------
 
+@pytest.mark.parametrize("url,expected", [
+    ("https://blob/a.tif?sig=SECRET&se=2099", "https://blob/a.tif?…"),
+    ("https://x/b.tif", "https://x/b.tif"),
+    ("https://x/c.tif?", "https://x/c.tif?…"),
+])
+def test_redact_url_strips_query(url, expected):
+    from earthfetch.utils import redact_url
+    out = redact_url(url)
+    assert out == expected
+    assert "SECRET" not in out
+
+
 def test_cache_dir_env_override(monkeypatch, tmp_path):
     monkeypatch.setenv("EARTHFETCH_CACHE", str(tmp_path / "cache"))
     assert get_cache_dir() == tmp_path / "cache"
@@ -931,9 +943,21 @@ def test_missing_extra_gives_friendly_error(monkeypatch):
     assert "pip install" in str(e.value)
 
 
-def test_missing_extra_preserves_submodule_message(monkeypatch):
-    # a MissingDependencyError already raised by the submodule (with its own
-    # specific message) must pass through unchanged, not get re-wrapped
+@pytest.mark.parametrize("func,modname,extra", [
+    # composite needs xarray; a NESTED rasterio failure ([raster]) while
+    # importing _composite must still tell the user to install [xarray]
+    ("composite", "._composite", "xarray"),
+    ("time_series", ".timeseries", "xarray"),
+    ("load_dem", ".load", "xarray"),
+    ("clip_reproject", ".raster", "raster"),
+    ("sample", ".zonal", "raster"),
+    ("to_rioxarray", ".interop", "interop"),
+])
+def test_missing_extra_names_the_functions_own_extra(monkeypatch, func, modname,
+                                                     extra):
+    # even when a submodule raises its own MissingDependencyError naming a
+    # different (insufficient) extra, __getattr__ must name the extra mapped
+    # to the requested function's module.
     import importlib
 
     import earthfetch
@@ -942,7 +966,7 @@ def test_missing_extra_preserves_submodule_message(monkeypatch):
     real = importlib.import_module
 
     def fake(name, package=None):
-        if name == ".raster":
+        if name == modname:
             raise MissingDependencyError(
                 "rasterio is required for raster operations: "
                 "pip install earthfetch[raster]"
@@ -950,7 +974,41 @@ def test_missing_extra_preserves_submodule_message(monkeypatch):
         return real(name, package)
 
     monkeypatch.setattr(importlib, "import_module", fake)
-    monkeypatch.delitem(earthfetch.__dict__, "clip_reproject", raising=False)
+    monkeypatch.delitem(earthfetch.__dict__, func, raising=False)
     with pytest.raises(MissingDependencyError) as e:
-        earthfetch.__getattr__("clip_reproject")
-    assert "rasterio is required for raster operations" in str(e.value)
+        earthfetch.__getattr__(func)
+    msg = str(e.value)
+    assert f"earthfetch[{extra}]" in msg, msg
+    assert func in msg
+
+
+def test_load_naip_missing_dep_names_xarray(monkeypatch):
+    # naip's module imports cleanly (search_naip stays core-importable), so
+    # its in-function heavy-dep guard must name [xarray], not leak [raster]
+    import earthfetch.load as loadmod
+    from earthfetch.exceptions import MissingDependencyError
+
+    def no_xarray():
+        raise MissingDependencyError("xarray is required: earthfetch[xarray]")
+
+    monkeypatch.setattr(loadmod, "_xr", no_xarray)
+    with pytest.raises(MissingDependencyError) as e:
+        ef.load_naip((-73.97, 40.76, -73.95, 40.80))
+    assert "earthfetch[xarray]" in str(e.value)
+
+
+def test_composite_fails_fast_before_network(monkeypatch):
+    # missing xarray must fail before any STAC search / download, not after
+    import earthfetch._composite as cmod
+    from earthfetch.exceptions import MissingDependencyError
+
+    def no_xarray():
+        raise MissingDependencyError("xarray is required: earthfetch[xarray]")
+
+    def boom(*a, **k):
+        raise AssertionError("network called before the xarray check")
+
+    monkeypatch.setattr(cmod, "_xr", no_xarray)
+    monkeypatch.setattr(cmod, "search_sentinel2", boom)
+    with pytest.raises(MissingDependencyError):
+        cmod.composite((-112, 40, -111, 41), start="2026-05-01", end="2026-06-01")

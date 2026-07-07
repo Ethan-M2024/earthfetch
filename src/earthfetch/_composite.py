@@ -100,6 +100,7 @@ def composite(
     """
     if method not in ("median", "mean", "first"):
         raise ValueError("method must be 'median', 'mean', or 'first'")
+    _xr()  # fail fast on missing xarray, before any network work
     bands = resolve_bands(bands)
     a = resolve_aoi(aoi)
     crs = resolve_crs(crs, a.bbox)

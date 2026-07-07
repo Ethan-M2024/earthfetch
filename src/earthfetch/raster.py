@@ -15,7 +15,7 @@ from pathlib import Path
 import numpy as np
 
 from .exceptions import MissingDependencyError
-from .utils import logger, validate_bbox
+from .utils import logger, redact_url, validate_bbox
 
 try:
     import rasterio
@@ -85,7 +85,8 @@ def warp_into_grid(
                                  win.width + 4, win.height + 4)
                     win = win.intersection(Window(0, 0, ds.width, ds.height))
                 except WindowError:
-                    logger.debug("source outside grid, skipping: %s", src)
+                    logger.debug("source outside grid, skipping: %s",
+                                 redact_url(str(src)))
                     continue
                 if win.width <= 0 or win.height <= 0:
                     continue
@@ -101,7 +102,8 @@ def warp_into_grid(
                     win.width / out_w, win.height / out_h
                 )
                 logger.debug("read %dx%d (of %dx%d) from %s",
-                             out_w, out_h, win.width, win.height, src)
+                             out_w, out_h, win.width, win.height,
+                             redact_url(str(src)))
                 reproject(
                     source=data,
                     destination=dst,
