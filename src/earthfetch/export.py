@@ -116,16 +116,21 @@ def to_cog(obj, path: str | os.PathLike) -> Path:
 
 
 def _stretch_rgb(data: np.ndarray, stretch: tuple) -> np.ndarray:
-    """Percentile-stretch a (bands, y, x) float array to 0..1 for display."""
-    out = np.zeros_like(data, dtype="float32")
-    for i, band in enumerate(data):
-        finite = band[np.isfinite(band)]
-        if finite.size == 0:
-            continue
-        lo, hi = np.percentile(finite, stretch)
-        scaled = (band - lo) / (hi - lo) if hi > lo else band * 0
-        out[i] = np.clip(np.nan_to_num(scaled), 0, 1)
-    return out
+    """Percentile-stretch a (bands, y, x) float array to 0..1 for display.
+
+    Uses a single low/high computed across all bands together, so the colour
+    balance between channels is preserved. Stretching each band to its own
+    full range independently casts false colour on uniform or extreme scenes
+    — a red desert turns rainbow, a mostly-black ocean over-saturates — which
+    is exactly what a natural-colour quick-look must not do.
+    """
+    finite = data[np.isfinite(data)]
+    if finite.size == 0:
+        return np.zeros_like(data, dtype="float32")
+    lo, hi = np.percentile(finite, stretch)
+    if hi <= lo:
+        return np.zeros_like(data, dtype="float32")
+    return np.clip(np.nan_to_num((data - lo) / (hi - lo)), 0, 1).astype("float32")
 
 
 def show(obj, ax=None, cmap: str = "viridis", stretch: tuple = (2, 98),
@@ -182,14 +187,7 @@ def preview(obj, path: str | os.PathLike = "preview.png",
     data, _, transform, crs = _collect(obj)
     if data.shape[0] not in (1, 3):
         data = data[:3]
-    out = np.zeros_like(data, dtype="uint8")
-    for i, band in enumerate(data):
-        finite = band[np.isfinite(band)]
-        if finite.size == 0:
-            continue
-        lo, hi = np.percentile(finite, stretch)
-        scaled = (band - lo) / (hi - lo) if hi > lo else band * 0
-        out[i] = (np.clip(np.nan_to_num(scaled), 0, 1) * 255).astype("uint8")
+    out = (_stretch_rgb(data, stretch) * 255).astype("uint8")
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
     count, height, width = out.shape

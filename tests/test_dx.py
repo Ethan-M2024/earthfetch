@@ -115,6 +115,30 @@ def test_show_single_band_has_colorbar():
     plt.close("all")
 
 
+def test_stretch_preserves_color_balance():
+    # a scene where red > green > blue everywhere (with variance so the
+    # percentile stretch is well-defined). A shared stretch must keep that
+    # ordering; a per-channel stretch would flatten all three to ~equal.
+    from earthfetch.export import _stretch_rgb
+    grad = np.linspace(0, 0.1, 64, dtype="float32").reshape(8, 8)
+    data = np.stack([grad + 0.30, grad + 0.15, grad + 0.05])  # R, G, B
+    out = _stretch_rgb(data, (2, 98))
+    r, g, b = out[0].mean(), out[1].mean(), out[2].mean()
+    assert r > g > b
+    assert (r - b) > 0.3   # clearly separated, not flattened to equal
+
+
+def test_stretch_uniform_scene_no_false_color():
+    # a near-uniform reddish scene must not explode into rainbow: with a
+    # shared stretch the channels stay ordered R > G > B
+    from earthfetch.export import _stretch_rgb
+    rng = np.random.default_rng(0)
+    noise = rng.normal(0, 0.002, (8, 8)).astype("float32")
+    data = np.stack([0.30 + noise, 0.20 + noise, 0.10 + noise])
+    out = _stretch_rgb(data, (2, 98))
+    assert out[0].mean() > out[1].mean() > out[2].mean()
+
+
 def test_show_accepts_existing_ax():
     pytest.importorskip("matplotlib")
     import matplotlib

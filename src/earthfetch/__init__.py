@@ -29,7 +29,7 @@ from .sentinel import (
 from .usgs import DEM_DATASETS, dem_tile_urls, download_dem, search_dem
 from .utils import cache_dir, cache_info, clear_cache
 
-__version__ = "0.7.0"
+__version__ = "0.7.1"
 
 #: Lazily-imported names that need the raster/xarray extras
 _LAZY = {

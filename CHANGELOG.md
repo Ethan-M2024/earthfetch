@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.7.1 (2026-07-06)
+
+### Fixed
+- **`preview`/`show` false colour on uniform or extreme scenes.** The RGB
+  stretch scaled each band to its own percentile range independently, which
+  cast rainbow colour on low-contrast scenes (a red desert) and
+  over-saturated mostly-dark ones (open ocean). It now uses one shared
+  low/high across the RGB bands, preserving natural colour balance.
+
 ## 0.7.0 (2026-07-06)
 
 A production-hardening release: no breaking changes, focused on the things
