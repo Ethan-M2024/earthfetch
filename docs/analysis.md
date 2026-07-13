@@ -21,6 +21,26 @@ ndvi_monthly = ef.time_series("Central Valley, California",
                               freq="MS")   # monthly median composites
 ```
 
+## Elevation
+
+`elevation()` answers "how high is this point?" It is **mixed-source**: with
+`source="auto"` (default) it uses **USGS 3DEP** inside the United States and
+falls back to **Copernicus GLO-30** everywhere else, so it works worldwide.
+
+```python
+ef.elevation((-111.65, 40.36))                    # -> 2430.5  (metres)
+ef.elevation((-111.65, 40.36), with_source=True)  # -> (2430.5, 'usgs')
+ef.elevation([(6.86, 45.83), (86.92, 27.99)])     # array; Copernicus abroad
+```
+
+| Source | Coverage | Resolution |
+|---|---|---|
+| USGS 3DEP | United States | `1m` (spotty), `10m` (default), `30m`, `5m-ak` |
+| Copernicus GLO-30 | Global | 30 m |
+
+Every DEM you load also carries its provenance in `dem.attrs["source"]`.
+(Higher-resolution polar DEMs such as ArcticDEM 2 m are planned.)
+
 ## Sampling points
 
 Read pixel values at coordinates — elevation at stations, band values at
@@ -29,8 +49,9 @@ field plots. Points outside the raster come back as NaN.
 ```python
 dem = ef.load_dem((-111.9, 40.7, -111.8, 40.8), crs="utm")
 elevations = ef.sample(dem, [(-111.85, 40.75), (-111.88, 40.72)])
+print(dem.attrs["source"])                  # 'usgs' or 'copernicus'
 
-rgb = ef.composite("Moab, Utah", start="2026-05-01", end="2026-06-15")
+rgb = ef.composite("Moab, Utah", start="2024-05-01", end="2024-06-15")
 values = ef.sample(rgb, (-109.55, 38.57))   # (n_bands,) at one point
 ```
 

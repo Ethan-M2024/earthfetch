@@ -137,6 +137,7 @@ def load_sentinel2(
     crs: str = "EPSG:4326",
     res: float | None = None,
     item: dict | None = None,
+    items: Sequence[dict] | None = None,
     start: str | None = None,
     end: str | None = None,
     max_cloud: float = 20.0,
@@ -144,8 +145,10 @@ def load_sentinel2(
 ) -> xarray.DataArray:
     """Load Sentinel-2 L2A bands for a bbox as one aligned DataArray.
 
-    Pass either a STAC ``item`` (from ``search_sentinel2``) or ``start``/
-    ``end`` dates — then the clearest scene in the range is used.
+    Pass one of: a single STAC ``item``; a list of ``items`` (from
+    ``covering_scenes`` — mosaicked together to fill an AOI that spans
+    tile boundaries); or ``start``/``end`` dates, in which case the single
+    clearest scene in the range is used.
 
     ``res`` defaults to the finest native resolution among ``bands``.
     ``scale=True`` (default) converts DNs to surface reflectance (0..1)
@@ -160,22 +163,29 @@ def load_sentinel2(
     bbox = a.bbox
     crs = resolve_crs(crs, bbox)
     bands = resolve_bands(bands)
-    if item is None:
-        if start is None or end is None:
-            raise ValueError("pass item=... or start=/end= dates")
-        item = clearest_scene(bbox, start, end, max_cloud=max_cloud)
+    if items is None:
+        if item is None:
+            if start is None or end is None:
+                raise ValueError("pass item=..., items=..., or start=/end= dates")
+            item = clearest_scene(bbox, start, end, max_cloud=max_cloud)
+        items = [item]
+    items = list(items)
+    if not items:
+        raise ValueError("items is empty")
 
     native = min(BAND_RESOLUTION.get(b.upper(), 10) for b in bands)
     res = _resolve_res(res, float(native), crs)
     transform, width, height = make_grid(bbox, crs, res)
-    logger.info("load_sentinel2: %s %s -> %dx%d @ %s",
-                item["id"], list(bands), width, height, crs)
+    logger.info("load_sentinel2: %d scene(s) %s -> %dx%d @ %s",
+                len(items), list(bands), width, height, crs)
 
     layers = []
     for b in bands:
-        layer = warp_into_grid([band_url(item, b)], transform, width, height, crs)
+        # mosaic this band across every scene (warp_into_grid merges a list)
+        layer = warp_into_grid([band_url(it, b) for it in items],
+                               transform, width, height, crs)
         if scale:
-            sc, off = scale_offset(item, b)
+            sc, off = scale_offset(items[0], b)
             layer = np.where(np.isfinite(layer),
                              np.maximum(layer * sc + off, 0.0), np.nan)
         layers.append(layer)
@@ -183,11 +193,12 @@ def load_sentinel2(
     da = _to_dataarray(
         data, transform, width, height, crs, "sentinel2",
         {
-            "scene_id": item["id"],
-            "datetime": item["properties"].get("datetime"),
-            "cloud_cover": item["properties"].get("eo:cloud_cover"),
+            "scene_id": items[0]["id"] if len(items) == 1 else "",
+            "scene_ids": [it["id"] for it in items],
+            "datetime": items[0]["properties"].get("datetime"),
+            "cloud_cover": items[0]["properties"].get("eo:cloud_cover"),
             "reflectance": scale,
-            "sources": [band_url(item, b) for b in bands],
+            "sources": [band_url(items[0], b) for b in bands],
         },
     )
     return da.assign_coords(band=("band", [b.upper() for b in bands]))
@@ -228,11 +239,14 @@ def stack(
     return ds
 
 
-def elevation(points, source: str = "auto", resolution: str = "10m"):
+def elevation(points, source: str = "auto", resolution: str = "10m",
+              with_source: bool = False):
     """Elevation in meters at one or more ``(lon, lat)`` points.
 
-    The most direct question a DEM answers. Loads a DEM covering the points
-    (USGS in the US, Copernicus elsewhere) and samples it.
+    The most direct question a DEM answers. Elevation is **mixed-source**:
+    with ``source="auto"`` (default) it uses USGS 3DEP inside the United
+    States and falls back to Copernicus GLO-30 everywhere else, so it works
+    worldwide. Pass ``with_source=True`` to also get which source was used.
 
     Parameters
     ----------
@@ -240,13 +254,15 @@ def elevation(points, source: str = "auto", resolution: str = "10m"):
         Point/MultiPoint (WGS84).
     source : "usgs", "copernicus", or "auto".
     resolution : DEM resolution when the USGS source is used.
+    with_source : also return the DEM source ("usgs" or "copernicus").
 
     Returns
     -------
     float or numpy.ndarray
         A float for a single point, else an array of elevations (NaN where
-        outside coverage). Best for nearby points — far-apart points load a
-        DEM spanning their whole bounding box.
+        outside coverage). If ``with_source`` is True, returns
+        ``(elevation, source)``. Best for nearby points — far-apart points
+        load a DEM spanning their whole bounding box.
     """
     from .zonal import _as_points, sample
 
@@ -257,4 +273,5 @@ def elevation(points, source: str = "auto", resolution: str = "10m"):
     bbox = (min(lons) - pad, min(lats) - pad, max(lons) + pad, max(lats) + pad)
     dem = load_dem(bbox, resolution=resolution, crs="utm", source=source)
     vals = sample(dem, pts)
-    return float(vals[0]) if len(pts) == 1 else vals
+    result = float(vals[0]) if len(pts) == 1 else vals
+    return (result, dem.attrs["source"]) if with_source else result

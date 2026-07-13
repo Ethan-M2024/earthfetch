@@ -188,3 +188,21 @@ def test_elevation_multiple_points_returns_array(monkeypatch):
     out = ef.elevation([(-111.895, 40.704), (-111.892, 40.706)])
     assert out.shape == (2,)
     assert np.allclose(out, 1500.0)
+
+
+def test_elevation_with_source(monkeypatch):
+    # answers "will it return the source too?" — mixed USGS/Copernicus
+    from earthfetch.load import _to_dataarray
+    from earthfetch.raster import make_grid
+
+    crs = "EPSG:32612"
+    transform, w, h = make_grid((-111.9, 40.70, -111.89, 40.708), crs, 10.0)
+    dem = _to_dataarray(np.full((h, w), 1500.0, "float32"),
+                        transform, w, h, crs, "dem", {"source": "copernicus"})
+
+    import earthfetch.load as loadmod
+    monkeypatch.setattr(loadmod, "load_dem", lambda *a, **k: dem)
+
+    val, src = ef.elevation((-111.895, 40.704), with_source=True)
+    assert val == pytest.approx(1500.0)
+    assert src == "copernicus"

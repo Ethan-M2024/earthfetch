@@ -15,6 +15,7 @@ from .exceptions import (
     NoScenesError,
     TileNotFoundError,
 )
+from .landsat import search_landsat
 from .naip import naip_tile_urls, search_naip
 from .sentinel import (
     BAND_ALIASES,
@@ -22,6 +23,7 @@ from .sentinel import (
     BAND_RESOLUTION,
     band_url,
     clearest_scene,
+    covering_scenes,
     download_sentinel2,
     scene_summary,
     search_sentinel2,
@@ -29,7 +31,7 @@ from .sentinel import (
 from .usgs import DEM_DATASETS, dem_tile_urls, download_dem, search_dem
 from .utils import cache_dir, cache_info, clear_cache
 
-__version__ = "0.7.1"
+__version__ = "0.8.0"
 
 #: Lazily-imported names that need the raster/xarray extras
 _LAZY = {
@@ -39,6 +41,7 @@ _LAZY = {
     "write_geotiff": "raster",
     "load_dem": "load",
     "load_sentinel2": "load",
+    "load_landsat": "landsat",
     "stack": "load",
     "composite": "_composite",
     "terrain": "_terrain",
@@ -83,6 +86,7 @@ _EXTRA_FOR_MODULE = {
     "timeseries": "xarray",
     "indices": "xarray",
     "naip": "xarray",
+    "landsat": "xarray",
     "interop": "interop",
 }
 
@@ -122,10 +126,11 @@ __all__ = [
     "search_dem", "download_dem", "dem_tile_urls",
     "copernicus_dem_urls", "download_copernicus_dem",
     "search_sentinel2", "download_sentinel2", "clearest_scene",
-    "scene_summary", "band_url",
+    "covering_scenes", "scene_summary", "band_url",
     # arrays (extras)
     "load_dem", "load_sentinel2", "stack", "clip_reproject",
     "composite", "terrain", "time_series", "elevation",
+    "search_landsat", "load_landsat",
     "load_naip", "search_naip", "naip_tile_urls",
     "ndvi", "ndwi", "nbr", "evi", "savi",
     "ndmi", "ndsi", "ndre", "ndbi", "gndvi", "msavi", "bsi",

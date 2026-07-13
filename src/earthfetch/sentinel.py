@@ -167,6 +167,108 @@ def clearest_scene(
     return items[0]
 
 
+def _point_in_ring(x: float, y: float, ring) -> bool:
+    """Ray-casting point-in-polygon for a single GeoJSON linear ring."""
+    inside = False
+    n = len(ring)
+    j = n - 1
+    for i in range(n):
+        xi, yi = ring[i][0], ring[i][1]
+        xj, yj = ring[j][0], ring[j][1]
+        if ((yi > y) != (yj > y)) and (
+            x < (xj - xi) * (y - yi) / (yj - yi) + xi
+        ):
+            inside = not inside
+        j = i
+    return inside
+
+
+def _covers_point(geometry: dict, x: float, y: float) -> bool:
+    """Whether a GeoJSON Polygon/MultiPolygon contains point (x, y)."""
+    if not geometry:
+        return False
+    t = geometry.get("type")
+    coords = geometry.get("coordinates")
+    polys = coords if t == "MultiPolygon" else [coords] if t == "Polygon" else []
+    for poly in polys:
+        if not poly:
+            continue
+        # first ring is the exterior; remaining rings are holes
+        if _point_in_ring(x, y, poly[0]) and not any(
+            _point_in_ring(x, y, hole) for hole in poly[1:]
+        ):
+            return True
+    return False
+
+
+def covering_scenes(
+    bbox: Sequence[float],
+    start: str,
+    end: str,
+    max_cloud: float = 20.0,
+    limit: int = 100,
+    grid: int = 16,
+) -> list[dict]:
+    """Clearest scenes whose footprints together cover the whole bbox.
+
+    ``clearest_scene`` returns a single scene, which may only partially cover
+    an AOI that straddles Sentinel-2 tile boundaries. This walks scenes
+    clearest-first and keeps each one that adds coverage until the bbox is
+    filled — so the mosaic is built from the clearest available scenes. Feed
+    the result to ``load_sentinel2(items=...)``.
+
+    Parameters
+    ----------
+    bbox : (min_lon, min_lat, max_lon, max_lat) in WGS84 degrees.
+    start, end : ISO dates bounding the search.
+    max_cloud : maximum scene cloud cover percent.
+    limit : cap on scenes considered.
+    grid : coverage-test resolution (grid x grid sample points over the bbox).
+
+    Returns
+    -------
+    list of dict
+        Selected STAC items, clearest first. Raises ``NoScenesError`` when no
+        scenes match; returns a partial cover (with a warning) if the scenes
+        found cannot fully cover the bbox.
+    """
+    items = search_sentinel2(bbox, start, end, max_cloud=max_cloud, limit=limit)
+    if not items:
+        raise NoScenesError(
+            f"no Sentinel-2 scenes for {tuple(bbox)} in {start}..{end} "
+            f"with cloud < {max_cloud}%"
+        )
+    minx, miny, maxx, maxy = validate_bbox(bbox)
+    # interior sample points (avoid the exact edges)
+    pts = [
+        (minx + (maxx - minx) * (i + 0.5) / grid,
+         miny + (maxy - miny) * (j + 0.5) / grid)
+        for i in range(grid) for j in range(grid)
+    ]
+    uncovered = set(range(len(pts)))
+    # walk scenes clearest-first (then by day, for seam-free mosaics) and keep
+    # any that add coverage — so the cover is built from the clearest scenes,
+    # never a single cloudy one that happens to span the whole bbox
+    candidates = sorted(
+        items,
+        key=lambda it: (it["properties"].get("eo:cloud_cover", 100),
+                        it["properties"].get("datetime", "")),
+    )
+    chosen: list[dict] = []
+    for it in candidates:
+        if not uncovered:
+            break
+        new = {k for k in uncovered if _covers_point(it.get("geometry"), *pts[k])}
+        if new:
+            chosen.append(it)
+            uncovered -= new
+    if uncovered:
+        logger.warning("covering_scenes: %d/%d sample points uncovered — "
+                       "scenes do not fully cover the bbox", len(uncovered), len(pts))
+    logger.info("covering_scenes: %d scene(s) cover the bbox", len(chosen))
+    return chosen
+
+
 def download_sentinel2(
     item: dict,
     bands: Sequence[str] = ("B04", "B03", "B02"),

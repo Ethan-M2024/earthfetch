@@ -124,14 +124,27 @@ def resolve_aoi(aoi) -> AOI:
         return _from_geojson(aoi)
     if isinstance(aoi, str) or isinstance(aoi, os.PathLike):
         text = str(aoi)
-        if text.lower().endswith((".geojson", ".json")) or Path(text).is_file():
+        low = text.lower()
+        if low.endswith((".geojson", ".json")):
             return _from_geojson(json.loads(Path(text).read_text()))
+        from .vector import VECTOR_EXTENSIONS
+        if low.endswith(VECTOR_EXTENSIONS):
+            from .vector import read_vector
+            return read_vector(text)
+        if Path(text).is_file():
+            # a local file with an unfamiliar name — try GeoJSON, else vector
+            try:
+                return _from_geojson(json.loads(Path(text).read_text()))
+            except (ValueError, UnicodeDecodeError):
+                from .vector import read_vector
+                return read_vector(text)
         return geocode(text)
     if isinstance(aoi, Sequence) and len(aoi) == 4:
         return AOI(bbox=validate_bbox(aoi))
     raise EarthfetchError(
         f"cannot interpret AOI of type {type(aoi).__name__}: pass a bbox "
-        "tuple, GeoJSON, a .geojson path, a shapely geometry, or a place name"
+        "tuple, GeoJSON, a .geojson/.shp/.gpkg path, a shapely geometry, "
+        "or a place name"
     )
 
 

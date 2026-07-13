@@ -39,6 +39,41 @@ def _xr():
     return inner()
 
 
+def _source_adapter(source: str):
+    """Return (search, band_url, scale_offset, validity, native_res) for a
+    composite source. ``validity(item, transform, w, h, crs)`` returns a
+    boolean mask of usable pixels from the source's cloud/QA band.
+    """
+    src = source.lower()
+    if src in ("sentinel2", "sentinel-2", "s2"):
+        def validity(item, transform, w, h, crs):
+            scl = warp_into_grid([band_url(item, "SCL")], transform, w, h, crs,
+                                 resampling=Resampling.nearest)
+            return np.isfinite(scl) & ~np.isin(scl, SCL_INVALID)
+
+        def native(bands):
+            return float(min(BAND_RESOLUTION.get(b.upper(), 10) for b in bands))
+
+        return (search_sentinel2, band_url, scale_offset, validity, native,
+                lambda b: b.upper())
+    if src in ("landsat", "landsat8", "landsat9", "l8", "l9"):
+        from .landsat import _QA_BAD, _resolve_band, search_landsat
+        from .landsat import band_url as ls_band_url
+        from .landsat import scale_offset as ls_scale_offset
+
+        def validity(item, transform, w, h, crs):
+            qa = warp_into_grid([ls_band_url(item, "qa")], transform, w, h, crs,
+                                resampling=Resampling.nearest)
+            return np.isfinite(qa) & ((qa.astype("int32") & _QA_BAD) == 0)
+
+        def native(bands):
+            return 30.0
+
+        return (search_landsat, ls_band_url, ls_scale_offset, validity, native,
+                lambda b: _resolve_band(b)[1])
+    raise ValueError(f"unknown source {source!r}; use 'sentinel2' or 'landsat'")
+
+
 def _select_day_groups(items: Sequence[dict], max_scenes: int) -> list:
     """Group scenes by acquisition day (one satellite pass covers the whole
     bbox across MGRS tile boundaries), rank days by mean cloud cover, and
@@ -68,8 +103,9 @@ def composite(
     max_scenes: int = 8,
     scale: bool = True,
     clip: bool = None,
+    source: str = "sentinel2",
 ) -> xarray.DataArray:
-    """Cloud-free composite of Sentinel-2 bands over a date range.
+    """Cloud-free composite of Sentinel-2 or Landsat bands over a date range.
 
     Searches every scene touching the AOI, keeps the ``max_scenes`` clearest
     acquisition days (all MGRS tiles of each day, so seams disappear), masks
@@ -101,39 +137,37 @@ def composite(
     if method not in ("median", "mean", "first"):
         raise ValueError("method must be 'median', 'mean', or 'first'")
     _xr()  # fail fast on missing xarray, before any network work
+    search, url_of, scale_of, validity, native_res, label_of = \
+        _source_adapter(source)
     bands = resolve_bands(bands)
     a = resolve_aoi(aoi)
     crs = resolve_crs(crs, a.bbox)
-    items = search_sentinel2(a.bbox, start, end, max_cloud=max_cloud, limit=100)
+    items = search(a.bbox, start, end, max_cloud=max_cloud, limit=100)
     if not items:
         raise NoScenesError(
-            f"no scenes for {a.bbox} in {start}..{end} with cloud < {max_cloud}%"
+            f"no {source} scenes for {a.bbox} in {start}..{end} "
+            f"with cloud < {max_cloud}%"
         )
     groups = _select_day_groups(items, max_scenes)
     scenes = [it for g in groups for it in g]
-    logger.info("composite: %d scene(s) over %d day(s), method=%s",
-                len(scenes), len(groups), method)
+    logger.info("composite: %d %s scene(s) over %d day(s), method=%s",
+                len(scenes), source, len(groups), method)
 
-    native = min(BAND_RESOLUTION.get(b.upper(), 10) for b in bands)
     from .load import _resolve_res, _to_dataarray
 
-    res = _resolve_res(res, float(native), crs)
+    res = _resolve_res(res, native_res(bands), crs)
     transform, width, height = make_grid(a.bbox, crs, res)
 
     acc = np.full((len(bands), height, width), np.nan, dtype="float32")
     stacks: list = []
     for item in scenes:
-        valid = None
-        if mask_clouds:
-            scl = warp_into_grid([band_url(item, "SCL")], transform, width,
-                                 height, crs, resampling=Resampling.nearest)
-            valid = np.isfinite(scl) & ~np.isin(scl, SCL_INVALID)
+        valid = validity(item, transform, width, height, crs) if mask_clouds else None
         layer = np.full((len(bands), height, width), np.nan, dtype="float32")
         for i, b in enumerate(bands):
-            data = warp_into_grid([band_url(item, b)], transform, width,
+            data = warp_into_grid([url_of(item, b)], transform, width,
                                   height, crs)
             if scale:
-                sc, off = scale_offset(item, b)
+                sc, off = scale_of(item, b)
                 data = np.where(np.isfinite(data),
                                 np.maximum(data * sc + off, 0.0), np.nan)
             if valid is not None:
@@ -166,6 +200,7 @@ def composite(
             "cloud_masked": mask_clouds,
             "reflectance": scale,
             "aoi_name": a.name or "",
+            "source": source,
         },
     )
-    return da.assign_coords(band=("band", [b.upper() for b in bands]))
+    return da.assign_coords(band=("band", [label_of(b) for b in bands]))

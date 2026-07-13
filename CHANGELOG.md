@@ -1,6 +1,29 @@
 # Changelog
 
-## 0.7.1 (2026-07-06)
+## 0.8.0 (2026-07-13)
+
+A community-requested feature release (all additive, non-breaking).
+
+### Added
+- **Landsat 8/9 (Collection-2 L2 surface reflectance)** as a full source, via
+  the Planetary Computer — still zero-key. `search_landsat` / `load_landsat`,
+  and `composite(..., source="landsat")` with `QA_PIXEL` cloud masking. Band
+  labels are normalized to their Sentinel-2 equivalents (red→`B04`, nir→`B08`,
+  ...) so the indices work unchanged across sources.
+- **Greedy-fill scene coverage** — `covering_scenes(bbox, start, end)` returns
+  the clearest set of scenes that together cover an AOI spanning tile
+  boundaries; feed it to `load_sentinel2(items=...)` (new `items=` parameter)
+  to mosaic them. (Requested by Animesh Paudel.)
+- **Local vector-file AOIs** — pass a `.shp`, `.gpkg`, or `.kml` path to any
+  function, not just `.geojson`. Features are unioned and **reprojected to
+  WGS84 automatically** (shapefiles usually carry a projected CRS). New
+  `earthfetch[vector]` extra (Fiona); GeoJSON still needs no extra.
+- **`elevation(..., with_source=True)`** returns the DEM source alongside the
+  value, and the docs now make the mixed USGS/Copernicus behaviour explicit
+  (elevation is USGS in the US, Copernicus GLO-30 worldwide).
+
+### Notes
+- ArcticDEM 2 m and Sentinel-1 SAR (also requested) are planned for 0.9.0.
 
 ### Fixed
 - **`preview`/`show` false colour on uniform or extreme scenes.** The RGB
