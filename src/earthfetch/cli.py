@@ -1,4 +1,4 @@
-"""Command-line interface: ``earthfetch dem ...`` and ``earthfetch s2 ...``."""
+"""Command-line interface: ``earthfetch dem``, ``earthfetch s2``, ``earthfetch rem``."""
 
 from __future__ import annotations
 
@@ -50,6 +50,20 @@ def main(argv=None) -> int:
     s2.add_argument("--limit", type=int, default=1,
                     help="number of scenes to download (clearest first)")
 
+    rem = sub.add_parser("rem", help="Relative Elevation Model (height above river)")
+    rem.add_argument("--bbox", type=float, nargs=4, required=True,
+                     metavar=("MIN_LON", "MIN_LAT", "MAX_LON", "MAX_LAT"))
+    rem.add_argument("--river", default=None,
+                     help="river name to measure from (default: main river)")
+    rem.add_argument("--resolution", default="10m",
+                     help="DEM resolution, e.g. 1m, 10m, 30m")
+    rem.add_argument("--res", type=float, default=None,
+                     help="output pixel size in meters")
+    rem.add_argument("--out", default="rem.tif", help="output GeoTIFF")
+    rem.add_argument("--png", default=None, help="also write a shaded PNG map")
+    rem.add_argument("--vmax", type=float, default=6.0,
+                     help="PNG color scale top, meters above river")
+
     args = parser.parse_args(argv)
     if args.verbose:
         logging.basicConfig(level=logging.INFO, stream=sys.stderr,
@@ -63,6 +77,18 @@ def main(argv=None) -> int:
 
 
 def _run(args) -> int:
+    if args.cmd == "rem":
+        import earthfetch as ef
+
+        r = ef.rem(tuple(args.bbox), river=args.river,
+                   resolution=args.resolution, res=args.res)
+        ef.to_cog(r.rem, args.out)
+        print(f"{r.attrs.get('river') or 'river'}: REM -> {args.out}")
+        if args.png:
+            ef.preview(r.rem, args.png, cmap="YlGnBu_r", vmin=0,
+                       vmax=args.vmax, shade=r.hillshade)
+            print(f"map -> {args.png}")
+        return 0
     if args.cmd == "dem":
         if args.search_only:
             tiles = usgs.search_dem(args.bbox, args.resolution, args.max_items)

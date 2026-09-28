@@ -16,6 +16,10 @@ One call, bbox in, aligned `xarray` out. Requires `earthfetch[xarray]`.
 
 ::: earthfetch.naip.load_naip
 
+::: earthfetch.sentinel1.load_sentinel1
+
+::: earthfetch._rem.rem
+
 ::: earthfetch.timeseries.time_series
 
 ::: earthfetch.load.elevation

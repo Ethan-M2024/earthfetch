@@ -1,4 +1,4 @@
-"""earthfetch: USGS 3DEP DEMs and Sentinel-2 L2A imagery, zero API keys.
+"""earthfetch: DEMs, optical and radar satellite imagery, zero API keys.
 
 Core (requests only): search + download functions.
 ``earthfetch[raster]``: clip_reproject, windowed reads.
@@ -17,6 +17,8 @@ from .exceptions import (
 )
 from .landsat import search_landsat
 from .naip import naip_tile_urls, search_naip
+from .polar import POLAR_COLLECTIONS, polar_dem_urls, search_polar_dem
+from .rivers import river_centerline
 from .sentinel import (
     BAND_ALIASES,
     BAND_PRESETS,
@@ -28,10 +30,11 @@ from .sentinel import (
     scene_summary,
     search_sentinel2,
 )
+from .sentinel1 import search_sentinel1
 from .usgs import DEM_DATASETS, dem_tile_urls, download_dem, search_dem
 from .utils import cache_dir, cache_info, clear_cache
 
-__version__ = "0.8.0"
+__version__ = "0.9.0"
 
 #: Lazily-imported names that need the raster/xarray extras
 _LAZY = {
@@ -64,6 +67,9 @@ _LAZY = {
     "bsi": "indices",
     "INDICES": "indices",
     "load_naip": "naip",
+    "load_sentinel1": "sentinel1",
+    "water_mask": "sentinel1",
+    "rem": "_rem",
     "time_series": "timeseries",
     "to_geotiff": "export",
     "to_cog": "export",
@@ -87,6 +93,8 @@ _EXTRA_FOR_MODULE = {
     "indices": "xarray",
     "naip": "xarray",
     "landsat": "xarray",
+    "sentinel1": "xarray",
+    "_rem": "xarray",
     "interop": "interop",
 }
 
@@ -131,6 +139,9 @@ __all__ = [
     "load_dem", "load_sentinel2", "stack", "clip_reproject",
     "composite", "terrain", "time_series", "elevation",
     "search_landsat", "load_landsat",
+    "search_sentinel1", "load_sentinel1", "water_mask",
+    "search_polar_dem", "polar_dem_urls",
+    "rem", "river_centerline",
     "load_naip", "search_naip", "naip_tile_urls",
     "ndvi", "ndwi", "nbr", "evi", "savi",
     "ndmi", "ndsi", "ndre", "ndbi", "gndvi", "msavi", "bsi",
@@ -143,7 +154,7 @@ __all__ = [
     # cache
     "cache_dir", "cache_info", "clear_cache",
     # metadata
-    "DEM_DATASETS", "BAND_ALIASES", "BAND_RESOLUTION", "BAND_PRESETS",
+    "DEM_DATASETS", "POLAR_COLLECTIONS", "BAND_ALIASES", "BAND_RESOLUTION", "BAND_PRESETS",
     # exceptions
     "EarthfetchError", "DownloadError", "TileNotFoundError",
     "NoScenesError", "BandNotFoundError", "MissingDependencyError",

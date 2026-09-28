@@ -1,5 +1,33 @@
 # Changelog
 
+## 0.9.0 (2026-09-27)
+
+Radar, polar elevation, and floodplain mapping (all additive, non-breaking).
+
+### Added
+- **`ef.rem()`: Relative Elevation Models in one call.** Downloads the DEM,
+  finds the main river (USGS NHD in the US, OpenStreetMap worldwide), samples
+  its water surface with bridge/spike filtering, interpolates it across the
+  valley (inverse distance weighting), and returns `rem`, `dem`,
+  `water_surface`, and `hillshade` on one grid. Pick a river by name or pass
+  your own centerline. Also on the CLI: `earthfetch rem --bbox ... --png`.
+- **`ef.river_centerline()`**: the main river through any AOI as GeoJSON.
+- **Sentinel-1 SAR** (radiometrically terrain corrected, Planetary Computer,
+  zero key): `search_sentinel1` / `load_sentinel1`, VV/VH in dB or linear,
+  newest-pass mosaics or multi-pass median composites that suppress speckle,
+  ascending/descending filtering. Plus `ef.water_mask()` for open water.
+  (Requested in the 0.7 feedback round.)
+- **ArcticDEM (2/10/32 m) and REMA (Antarctica)** via the Polar Geospatial
+  Center STAC: `load_dem(..., source="arcticdem" | "rema" | "polar")`, also
+  through `terrain`. `search_polar_dem` / `polar_dem_urls` for the tiles.
+- **`preview(cmap=, vmin=, vmax=, shade=)`**: colormapped quick-looks with
+  optional hillshade relief.
+
+### Fixed
+- `load_dem` now rejects an unknown `source` instead of silently treating it
+  as `"auto"`.
+- A test-order dependency on the cached NAIP token.
+
 ## 0.8.0 (2026-07-13)
 
 A community-requested feature release (all additive, non-breaking).

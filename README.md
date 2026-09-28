@@ -21,6 +21,14 @@ ndvi = ef.ndvi(ds)
 # Terrain anywhere (Alps -> Copernicus DEM, auto-UTM):
 terr = ef.terrain((6.85, 45.82, 6.90, 45.87))   # dem, slope, aspect, hillshade
 ef.to_cog(terr.hillshade, "hillshade.tif")
+
+# Floodplain map: height above the river, river found automatically:
+r = ef.rem((-110.72, 45.38, -110.62, 45.46), resolution="1m")
+ef.preview(r.rem, "rem.png", cmap="YlGnBu_r", vmin=0, vmax=10, shade=r.hillshade)
+
+# Radar sees through clouds: Sentinel-1 backscatter and a water mask
+s1 = ef.load_sentinel1("Sacramento, CA", start="2026-01-01", end="2026-01-20")
+water = ef.water_mask(s1)
 ```
 
 One scene replaces an afternoon: no EarthExplorer queues, no Copernicus
@@ -52,6 +60,11 @@ names return the full rectangle (pass `clip=True` to cut to the boundary).
 | Copernicus GLO-30 (AWS) | DEM | Global | 30 m |
 | Sentinel-2 L2A (Earth Search / AWS) | Multispectral imagery | Global | 10 / 20 / 60 m |
 | NAIP (Planetary Computer) | Aerial photography (RGBN) | United States | 0.6-1 m |
+| Landsat 8/9 C2 L2 (Planetary Computer) | Multispectral imagery | Global | 30 m |
+| Sentinel-1 RTC (Planetary Computer) | Radar backscatter (VV/VH) | Global | 10 m |
+| ArcticDEM v4.1 (PGC / AWS) | DEM | Arctic (~60°N and up) | 2 m, 10 m, 32 m |
+| REMA v2 (PGC / AWS) | DEM | Antarctica | 2 m, 10 m, 32 m |
+| USGS NHD / OpenStreetMap | River centerlines | US / global | vector |
 
 Looking for "Google Earth"-quality imagery? That's NAIP: actual aerial
 photos where you can see individual cars and trees.
@@ -67,6 +80,55 @@ nir = ef.load_naip(aoi, bands=["N","R","G"])     # false-color infrared
 pip install earthfetch              # search + download only (requests)
 pip install "earthfetch[xarray]"    # + load_dem / load_sentinel2 / stack
 ```
+
+## Relative Elevation Models
+
+A REM flattens a valley so the river sits at zero and every terrace, old
+channel, and flood-prone swale shows as height above the water. `ef.rem`
+runs the whole workflow: DEM download, river centerline (USGS NHD in the
+US, OpenStreetMap elsewhere), water-surface sampling, inverse-distance
+interpolation, subtraction.
+
+![REM of the Yellowstone River near Livingston, Montana, from 1 m USGS lidar](https://raw.githubusercontent.com/Ethan-M2024/earthfetch/main/docs/img/rem_yellowstone.png)
+
+```python
+r = ef.rem("valley.geojson", resolution="1m")     # rem, dem, water_surface, hillshade
+r = ef.rem(bbox, river="Snake")                   # pick a river by name
+r = ef.rem(bbox, river="my_centerline.shp")       # or bring your own line
+ef.to_cog(r.rem, "rem.tif")
+
+line = ef.river_centerline(bbox)                  # just the river, as GeoJSON
+```
+
+```bash
+earthfetch rem --bbox -110.72 45.38 -110.62 45.46 --resolution 1m --png rem.png
+```
+
+Draw the AOI around a valley segment with the river running through it; a
+few km of river works best.
+
+## Radar: Sentinel-1
+
+Radar works through cloud and at night: floods under storm cover, sea ice,
+winter landscapes. Gamma naught backscatter, already terrain corrected.
+
+```python
+s1 = ef.load_sentinel1(aoi, start="2026-08-01", end="2026-09-20")      # newest pass, dB
+s1 = ef.load_sentinel1(aoi, start=..., end=..., method="median")      # speckle-free
+s1 = ef.load_sentinel1(aoi, start=..., end=..., orbit_state="ascending")
+water = ef.water_mask(s1, threshold=-18)                              # 1 = open water
+```
+
+## Polar DEMs: ArcticDEM and REMA
+
+```python
+dem = ef.load_dem("Fairbanks, Alaska", resolution="2m", crs="utm", source="arcticdem")
+dem = ef.load_dem(bbox, resolution="10m", source="polar")   # Arctic or Antarctic by hemisphere
+terr = ef.terrain(bbox, resolution="2m", source="arcticdem")
+```
+
+Polar heights are relative to the WGS84 ellipsoid, not a geoid, so they can
+differ from USGS/Copernicus by tens of meters.
 
 ## Composites, indices, terrain
 

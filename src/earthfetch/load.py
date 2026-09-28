@@ -86,13 +86,15 @@ def load_dem(
     Parameters
     ----------
     bbox : (min_lon, min_lat, max_lon, max_lat) in WGS84 degrees.
-    resolution : USGS dataset ("1m", "10m", "30m", "5m-ak"); ignored for
-        the Copernicus source (always 30 m).
+    resolution : USGS dataset ("1m", "10m", "30m", "5m-ak"); for the polar
+        sources "2m", "10m", or "32m"; ignored for Copernicus (always 30 m).
     crs : output CRS ("EPSG:32612", "EPSG:5070", ...).
     res : output pixel size in ``crs`` units; defaults to the native
         resolution (converted to degrees for geographic CRSs).
-    source : "usgs", "copernicus", or "auto" (USGS first, Copernicus
-        fallback outside the US).
+    source : "usgs", "copernicus", "arcticdem" (2 m Arctic, north of
+        ~60°N), "rema" (2 m Antarctica), "polar" (whichever of the two fits
+        the hemisphere), or "auto" (USGS first, Copernicus fallback outside
+        the US).
 
     Returns
     -------
@@ -106,6 +108,27 @@ def load_dem(
     crs = resolve_crs(crs, bbox)
     urls: list = []
     used = source
+    if source in ("arcticdem", "rema", "polar"):
+        from .polar import POLAR_NATIVE_M, polar_dem_urls, polar_region
+
+        resolution = str(resolution).lower()
+        region = polar_region(bbox) if source == "polar" else source
+        urls = polar_dem_urls(bbox, resolution=resolution, region=region)
+        res = _resolve_res(res, POLAR_NATIVE_M[resolution], crs)
+        transform, width, height = make_grid(bbox, crs, res)
+        logger.info("load_dem: %s %s -> %dx%d @ %s", region, resolution,
+                    width, height, crs)
+        data = warp_into_grid(urls, transform, width, height, crs)
+        return _to_dataarray(
+            data, transform, width, height, crs, "dem",
+            {"units": "m", "source": region, "resolution": resolution,
+             "sources": urls},
+        )
+    if source not in ("usgs", "auto", "copernicus"):
+        raise ValueError(
+            f"unknown DEM source {source!r}; use 'auto', 'usgs', 'copernicus', "
+            "'arcticdem', 'rema', or 'polar'"
+        )
     if source in ("usgs", "auto"):
         try:
             urls = dem_tile_urls(bbox, resolution=resolution)

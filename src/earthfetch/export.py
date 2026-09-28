@@ -8,6 +8,7 @@ applied to them — the CRS/transform ride along in ``attrs``.
 from __future__ import annotations
 
 import os
+import warnings
 from pathlib import Path
 
 import numpy as np
@@ -16,6 +17,7 @@ from .exceptions import EarthfetchError
 
 try:
     import rasterio
+    from rasterio.errors import NotGeoreferencedWarning
     from rasterio.transform import Affine
 except ImportError as exc:  # pragma: no cover
     from .exceptions import MissingDependencyError
@@ -177,21 +179,62 @@ def show(obj, ax=None, cmap: str = "viridis", stretch: tuple = (2, 98),
     return ax
 
 
+def _colormap(band: np.ndarray, cmap: str, vmin, vmax, stretch) -> np.ndarray:
+    """Single band -> (3, y, x) 0..1 RGB through a matplotlib colormap."""
+    try:
+        import matplotlib
+    except ImportError as exc:  # pragma: no cover
+        from .exceptions import MissingDependencyError
+
+        raise MissingDependencyError(
+            "matplotlib is required for preview(cmap=...): "
+            "pip install earthfetch[plot]"
+        ) from exc
+    finite = band[np.isfinite(band)]
+    lo, hi = (np.percentile(finite, stretch) if finite.size else (0.0, 1.0))
+    lo = lo if vmin is None else vmin
+    hi = hi if vmax is None else vmax
+    norm = np.clip((band - lo) / ((hi - lo) or 1.0), 0, 1)
+    rgb = matplotlib.colormaps[cmap](np.nan_to_num(norm))[..., :3]
+    rgb[~np.isfinite(band)] = 1.0  # nodata renders white
+    return np.moveaxis(rgb, -1, 0).astype("float32")
+
+
 def preview(obj, path: str | os.PathLike = "preview.png",
-            stretch: tuple = (2, 98)) -> Path:
+            stretch: tuple = (2, 98), cmap: str | None = None,
+            vmin: float | None = None, vmax: float | None = None,
+            shade=None) -> Path:
     """Quick-look PNG with a percentile stretch.
 
     3-band inputs (e.g. B04,B03,B02 composites) render as RGB; single bands
-    as grayscale. Returns the PNG path — open it, or embed it in a notebook.
+    as grayscale, or through a matplotlib ``cmap`` ("YlGnBu_r", "terrain",
+    ...) with optional fixed ``vmin``/``vmax``. ``shade`` takes a hillshade
+    on the same grid (``terrain(...).hillshade``) and blends it in for
+    relief — the classic look for Relative Elevation Models. Returns the PNG
+    path — open it, or embed it in a notebook.
     """
     data, _, transform, crs = _collect(obj)
-    if data.shape[0] not in (1, 3):
-        data = data[:3]
-    out = (_stretch_rgb(data, stretch) * 255).astype("uint8")
+    if cmap is not None:
+        rgb = _colormap(data[0], cmap, vmin, vmax, stretch)
+    else:
+        if data.shape[0] not in (1, 3):
+            data = data[:3]
+        rgb = _stretch_rgb(data, stretch)
+    if shade is not None:
+        hs = np.asarray(getattr(shade, "values", shade), dtype="float32")
+        if hs.shape != rgb.shape[-2:]:
+            raise EarthfetchError(
+                f"shade grid {hs.shape} does not match the image {rgb.shape[-2:]}"
+            )
+        hs = np.nan_to_num(hs / 255.0, nan=1.0)
+        rgb = rgb * (0.45 + 0.55 * hs)  # soft multiply keeps colors readable
+    out = (np.clip(rgb, 0, 1) * 255).astype("uint8")
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
     count, height, width = out.shape
-    with rasterio.open(path, "w", driver="PNG", count=count, dtype="uint8",
-                       width=width, height=height) as dst:
-        dst.write(out)
+    with warnings.catch_warnings():  # a PNG quick-look carries no georef
+        warnings.simplefilter("ignore", NotGeoreferencedWarning)
+        with rasterio.open(path, "w", driver="PNG", count=count, dtype="uint8",
+                           width=width, height=height) as dst:
+            dst.write(out)
     return path
