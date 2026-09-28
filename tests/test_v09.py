@@ -391,3 +391,19 @@ def test_preview_cmap_and_shade(tmp_path):
     assert not np.array_equal(img[0], img[2])        # it's colour, not grey
     with pytest.raises(ef.EarthfetchError):
         ef.preview(da, tmp_path / "bad.png", shade=np.ones((3, 3)))
+
+
+def test_preview_legend(tmp_path):
+    pytest.importorskip("matplotlib")
+    data = np.linspace(-1, 8, 400, dtype="float32").reshape(20, 20)
+    da = xr.DataArray(data, dims=("y", "x"), name="rem",
+                      attrs={"crs": CRS, "transform": (10, 0, 0, 0, -10, 200)})
+    from earthfetch.export import _legend_label
+
+    assert _legend_label(da) == "Height above river (m)"
+    out = ef.preview(da, tmp_path / "leg.png", cmap="YlGnBu_r", vmin=0, vmax=5,
+                     legend=True)
+    with rasterio.open(out) as png:
+        assert png.width > 20 and png.height == 20   # map plus a legend panel
+    with pytest.raises(ef.EarthfetchError, match="cmap"):
+        ef.preview(da, tmp_path / "x.png", legend=True)

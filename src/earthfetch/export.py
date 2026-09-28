@@ -197,25 +197,68 @@ def _colormap(band: np.ndarray, cmap: str, vmin, vmax, stretch) -> np.ndarray:
     norm = np.clip((band - lo) / ((hi - lo) or 1.0), 0, 1)
     rgb = matplotlib.colormaps[cmap](np.nan_to_num(norm))[..., :3]
     rgb[~np.isfinite(band)] = 1.0  # nodata renders white
-    return np.moveaxis(rgb, -1, 0).astype("float32")
+    return np.moveaxis(rgb, -1, 0).astype("float32"), float(lo), float(hi)
+
+
+def _legend_label(obj) -> str:
+    name = getattr(obj, "name", None) or ""
+    if name == "rem":
+        return "Height above river (m)"
+    units = getattr(obj, "attrs", {}).get("units")
+    return f"{name} ({units})" if name and units else name or (units or "")
+
+
+def _write_with_legend(path, rgb, cmap, lo, hi, label, data):
+    """PNG of the map at full resolution with a labeled colorbar panel on
+    the right. Colors past either end are marked with an arrow tip."""
+    import matplotlib
+
+    matplotlib.use("Agg", force=False)
+    import matplotlib.pyplot as plt
+    from matplotlib.colors import Normalize
+
+    _, h, w = rgb.shape
+    finite = data[np.isfinite(data)]
+    extend = {(False, False): "neither", (True, False): "min",
+              (False, True): "max", (True, True): "both"}[
+        (bool(finite.size and finite.min() < lo), bool(finite.size and finite.max() > hi))]
+    font = max(10.0, h / 70.0)
+    panel = int(font * 9)
+    dpi = 100
+    fig = plt.figure(figsize=((w + panel) / dpi, h / dpi), dpi=dpi)
+    ax = fig.add_axes([0, 0, w / (w + panel), 1])
+    ax.imshow(np.moveaxis(rgb, 0, -1), interpolation="nearest")
+    ax.set_axis_off()
+    cax = fig.add_axes([(w + font * 1.5) / (w + panel), 0.2,
+                        font * 1.6 / (w + panel), 0.6])
+    sm = plt.cm.ScalarMappable(norm=Normalize(lo, hi), cmap=cmap)
+    bar = fig.colorbar(sm, cax=cax, extend=extend)
+    bar.ax.tick_params(labelsize=font)
+    bar.set_label(label, fontsize=font * 1.1)
+    fig.savefig(path, dpi=dpi, facecolor="white")
+    plt.close(fig)
 
 
 def preview(obj, path: str | os.PathLike = "preview.png",
             stretch: tuple = (2, 98), cmap: str | None = None,
             vmin: float | None = None, vmax: float | None = None,
-            shade=None) -> Path:
+            shade=None, legend: bool | str = False) -> Path:
     """Quick-look PNG with a percentile stretch.
 
     3-band inputs (e.g. B04,B03,B02 composites) render as RGB; single bands
     as grayscale, or through a matplotlib ``cmap`` ("YlGnBu_r", "terrain",
     ...) with optional fixed ``vmin``/``vmax``. ``shade`` takes a hillshade
     on the same grid (``terrain(...).hillshade``) and blends it in for
-    relief — the classic look for Relative Elevation Models. Returns the PNG
-    path — open it, or embed it in a notebook.
+    relief — the classic look for Relative Elevation Models. ``legend=True``
+    (with a ``cmap``) adds a colorbar panel labeled in the data's units,
+    "Height above river (m)" for a REM; pass a string for your own label.
+    Returns the PNG path — open it, or embed it in a notebook.
     """
     data, _, transform, crs = _collect(obj)
+    if legend and cmap is None:
+        raise EarthfetchError("legend needs a cmap, e.g. cmap='YlGnBu_r'")
     if cmap is not None:
-        rgb = _colormap(data[0], cmap, vmin, vmax, stretch)
+        rgb, lo, hi = _colormap(data[0], cmap, vmin, vmax, stretch)
     else:
         if data.shape[0] not in (1, 3):
             data = data[:3]
@@ -228,9 +271,13 @@ def preview(obj, path: str | os.PathLike = "preview.png",
             )
         hs = np.nan_to_num(hs / 255.0, nan=1.0)
         rgb = rgb * (0.45 + 0.55 * hs)  # soft multiply keeps colors readable
-    out = (np.clip(rgb, 0, 1) * 255).astype("uint8")
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
+    if legend:
+        label = legend if isinstance(legend, str) else _legend_label(obj)
+        _write_with_legend(path, np.clip(rgb, 0, 1), cmap, lo, hi, label, data[0])
+        return path
+    out = (np.clip(rgb, 0, 1) * 255).astype("uint8")
     count, height, width = out.shape
     with warnings.catch_warnings():  # a PNG quick-look carries no georef
         warnings.simplefilter("ignore", NotGeoreferencedWarning)
