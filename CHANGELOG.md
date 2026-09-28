@@ -7,8 +7,9 @@ Radar, polar elevation, and floodplain mapping (all additive, non-breaking).
 ### Added
 - **`ef.rem()`: Relative Elevation Models in one call.** Downloads the DEM,
   finds the main river (USGS NHD in the US, OpenStreetMap worldwide), samples
-  its water surface with bridge/spike filtering, interpolates it across the
-  valley (inverse distance weighting), and returns `rem`, `dem`,
+  its water surface (bridge/spike filtering, downhill-only profile),
+  interpolates it across the valley (detrended inverse distance weighting
+  over every river sample, so no banding far from the channel), and returns `rem`, `dem`,
   `water_surface`, and `hillshade` on one grid. Pick a river by name or pass
   your own centerline. Also on the CLI: `earthfetch rem --bbox ... --png`.
 - **`ef.river_centerline()`**: the main river through any AOI as GeoJSON.
