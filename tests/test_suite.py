@@ -380,8 +380,10 @@ def test_band_url_missing_raises():
         band_url(_fake_item(), "B12")
 
 
-def test_scale_offset_from_metadata():
-    assert scale_offset(_fake_item(), "B04") == (0.0001, -0.1)
+def test_scale_offset_ignores_advertised_offset():
+    # Earth Search DNs are already harmonized; the -0.1 in the metadata would
+    # subtract 0.1 from every reflectance value
+    assert scale_offset(_fake_item(), "B04") == (0.0001, 0.0)
 
 
 def test_scale_offset_fallback_when_absent():

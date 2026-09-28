@@ -90,18 +90,22 @@ def band_url(item: dict, band: str) -> str:
 def scale_offset(item: dict, band: str) -> tuple:
     """(scale, offset) converting a band's DNs to surface reflectance.
 
-    Read from the STAC ``raster:bands`` metadata when present (baseline
-    >= 04.00 scenes carry offset -0.1); older scenes fall back to 1e-4, 0.
-    Non-reflectance assets (SCL, TCI) return (1, 0).
+    Earth Search serves Sentinel-2 L2A COGs whose DNs are already harmonized:
+    the processing-baseline >= 04.00 ``BOA_ADD_OFFSET`` of +1000 has been
+    removed, so reflectance is simply ``DN * 1e-4``. Their STAC
+    ``raster:bands`` still advertise ``offset: -0.1``; applying it subtracts
+    0.1 from every pixel (clear water and vegetation read as zero red, and
+    NDVI saturates near 1). Deep, clear lake water confirms it on every
+    baseline from 04.00 to 05.12: red DNs of 1 to 220, where an unremoved
+    offset would put them near 1000. So the scale comes from the metadata and
+    the offset is ignored. Non-reflectance assets (SCL, TCI) return (1, 0).
     """
     key = _asset_key(band)
     if key in ("scl", "visual", "thumbnail"):
         return (1.0, 0.0)
     raster_bands = item["assets"].get(key, {}).get("raster:bands") or []
-    if raster_bands:
-        rb = raster_bands[0]
-        return (rb.get("scale", 1e-4), rb.get("offset", 0.0))
-    return (1e-4, 0.0)
+    scale = raster_bands[0].get("scale", 1e-4) if raster_bands else 1e-4
+    return (scale, 0.0)
 
 
 def search_sentinel2(
