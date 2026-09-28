@@ -298,13 +298,57 @@ def test_idw_matches_brute_force_reference():
     xy = rng.uniform(0, 100, (200, 2))
     z = xy[:, 0] * 0.3
     qx, qy = np.meshgrid(np.linspace(0, 100, 30), np.linspace(0, 100, 20))
-    got = _idw(xy, z, qx, qy, k=8, power=2)
+    got = _idw(xy, z, qx, qy, power=2)
     q = np.column_stack([qx.ravel(), qy.ravel()])
     d = np.hypot(q[:, None, 0] - xy[None, :, 0], q[:, None, 1] - xy[None, :, 1])
-    idx = np.argsort(d, axis=1)[:, :8]
-    w = 1 / np.maximum(np.take_along_axis(d, idx, axis=1), 1e-6) ** 2
-    want = ((w * z[idx]).sum(1) / w.sum(1)).reshape(qx.shape)
-    np.testing.assert_allclose(got, want, rtol=1e-6)
+    w = 1 / np.maximum(d, 1e-6) ** 2
+    np.testing.assert_allclose(got, ((w @ z) / w.sum(1)).reshape(qx.shape), rtol=1e-6)
+
+
+def test_flow_weighted_takes_the_section_abreast():
+    from earthfetch._rem import _flow_weighted, _tangents
+
+    # a straight channel along x, dropping 1 m per 20 m station
+    pts = np.column_stack([np.arange(0, 400, 20.0), np.zeros(20)])
+    z = 100.0 - np.arange(20.0)
+    t, _ = _tangents(pts)
+    s = np.arange(0, 400, 20.0)
+    qx = np.array([[100.0, 100.0, 300.0]])
+    qy = np.array([[0.0, 800.0, -800.0]])
+    got = _flow_weighted(pts, z, t, s, qx, qy)
+    # 100 m downstream is station 5 (z=95) whether on the channel or 800 m out
+    np.testing.assert_allclose(got[0, :2], 95.0, atol=0.3)
+    np.testing.assert_allclose(got[0, 2], 85.0, atol=0.3)
+
+
+def test_merge_lines_chains_nhd_pieces():
+    from earthfetch._rem import _merge_lines
+
+    parts = [[[10, 0], [20, 0]], [[0, 0], [10, 0]], [[30, 0], [20, 0]],
+             [[100, 100], [101, 100]]]
+    merged = _merge_lines(parts, tol=0.5)
+    assert len(merged) == 2
+    xs = merged[0][:, 0]
+    assert sorted([xs[0], xs[-1]]) == [0, 30] and len(xs) == 4
+
+
+def test_profile_cleaning():
+    from earthfetch._rem import _drop_bridges, _enforce_downhill, _savgol
+
+    z = 100.0 - 0.02 * np.arange(60)
+    z[30] += 6.0                                   # a bridge deck
+    keep = _drop_bridges(z)
+    assert not keep[30] and keep.sum() == 59
+    up = np.array([10.0, 9.0, 9.3, 12.0, 6.0])    # 0.3 m pool ok, 3 m rise not
+    down = _enforce_downhill(up)
+    assert np.all(np.diff(down) <= 0.5 + 1e-9)          # no big rises left
+    assert down.mean() == pytest.approx(up.mean())       # violators averaged
+    np.testing.assert_allclose(_enforce_downhill([5.0, 5.3, 4.0]), [5.0, 5.3, 4.0])
+    noisy = z.copy()
+    noisy[::2] += 0.2
+    sm = _savgol(noisy, 9)
+    assert np.std(np.diff(sm)) < np.std(np.diff(noisy))
+    np.testing.assert_allclose(_savgol(np.arange(20.0), 7), np.arange(20.0), atol=1e-9)
 
 
 def test_rem_river_outside_dem(tmp_path, monkeypatch):
@@ -325,13 +369,9 @@ def test_rem_rejects_non_line_river():
         _river_geometry(poly, ef.resolve_aoi(BBOX))
 
 
-def test_rolling_median_removes_spike():
-    from earthfetch._rem import _rolling_median
-
-    z = np.arange(20, dtype=float)
-    z[10] = 500.0   # a bridge deck
-    out = _rolling_median(z, 7)
-    assert out[10] == pytest.approx(10.0, abs=1.5)
+def test_rem_method_validation():
+    with pytest.raises(ValueError, match="method"):
+        ef.rem(BBOX, river=_mid_river(), method="kriging")
 
 
 # ------------------------------------------------------------------ preview

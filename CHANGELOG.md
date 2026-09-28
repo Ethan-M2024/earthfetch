@@ -5,13 +5,18 @@
 Radar, polar elevation, and floodplain mapping (all additive, non-breaking).
 
 ### Added
-- **`ef.rem()`: Relative Elevation Models in one call.** Downloads the DEM,
-  finds the main river (USGS NHD in the US, OpenStreetMap worldwide), samples
-  its water surface (bridge/spike filtering, downhill-only profile),
-  interpolates it across the valley (detrended inverse distance weighting
-  over every river sample, so no banding far from the channel), and returns `rem`, `dem`,
-  `water_surface`, and `hillshade` on one grid. Pick a river by name or pass
-  your own centerline. Also on the CLI: `earthfetch rem --bbox ... --png`.
+- **`ef.rem()`: Relative Elevation Models in one call**, following the
+  Automated REM Generator pipeline: downloads the DEM, finds the main river
+  (USGS NHD in the US, OpenStreetMap worldwide), merges it into one channel
+  stationed every 20 m, reads the water surface from perpendicular
+  cross-sections (median), drops bridge decks, forces the profile downhill
+  (isotonic, pool tolerant), smooths it (Savitzky-Golay, window scaled to
+  river size), and builds a flow-projected base surface that blends into
+  detrended IDW far from the channel so wide floodplains stay seamless.
+  Returns `rem`, `dem`, `water_surface`, and `hillshade` on one grid. Pick a
+  river by name or pass your own centerline; `method="idw"`, `max_value`,
+  `half_width`, `smooth` for control. Also on the CLI:
+  `earthfetch rem --bbox ... --png`.
 - **`ef.river_centerline()`**: the main river through any AOI as GeoJSON.
 - **Sentinel-1 SAR** (radiometrically terrain corrected, Planetary Computer,
   zero key): `search_sentinel1` / `load_sentinel1`, VV/VH in dB or linear,
