@@ -86,7 +86,7 @@ def _run(args) -> int:
         print(f"{r.attrs.get('river') or 'river'}: REM -> {args.out}")
         if args.png:
             ef.preview(r.rem, args.png, cmap="YlGnBu_r", vmin=0,
-                       vmax=args.vmax, shade=r.hillshade)
+                       vmax=args.vmax, shade=r.hillshade, legend=True)
             print(f"map -> {args.png}")
         return 0
     if args.cmd == "dem":

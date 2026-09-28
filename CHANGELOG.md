@@ -26,8 +26,9 @@ Radar, polar elevation, and floodplain mapping (all additive, non-breaking).
 - **ArcticDEM (2/10/32 m) and REMA (Antarctica)** via the Polar Geospatial
   Center STAC: `load_dem(..., source="arcticdem" | "rema" | "polar")`, also
   through `terrain`. `search_polar_dem` / `polar_dem_urls` for the tiles.
-- **`preview(cmap=, vmin=, vmax=, shade=)`**: colormapped quick-looks with
-  optional hillshade relief.
+- **`preview(cmap=, vmin=, vmax=, shade=, legend=)`**: colormapped
+  quick-looks with optional hillshade relief and a labeled colorbar
+  ("Height above river (m)" for a REM; any string for your own label).
 
 ### Fixed
 - `load_dem` now rejects an unknown `source` instead of silently treating it

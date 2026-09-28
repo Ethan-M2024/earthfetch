@@ -24,7 +24,8 @@ ef.to_cog(terr.hillshade, "hillshade.tif")
 
 # Floodplain map: height above the river, river found automatically:
 r = ef.rem((-110.72, 45.38, -110.62, 45.46), resolution="1m")
-ef.preview(r.rem, "rem.png", cmap="YlGnBu_r", vmin=0, vmax=10, shade=r.hillshade)
+ef.preview(r.rem, "rem.png", cmap="YlGnBu_r", vmin=0, vmax=10, shade=r.hillshade,
+           legend=True)   # colorbar: "Height above river (m)"
 
 # Radar sees through clouds: Sentinel-1 backscatter and a water mask
 s1 = ef.load_sentinel1("Sacramento, CA", start="2026-01-01", end="2026-01-20")
