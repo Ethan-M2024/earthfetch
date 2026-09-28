@@ -80,3 +80,28 @@ def test_load_naip_live():
     assert img.shape[0] == 3
     assert img.attrs["source"] == "naip"
     assert np.isfinite(img.values).mean() > 0.95  # full rect, no fragment
+
+
+def test_load_dem_arcticdem_live():
+    import earthfetch as ef
+
+    dem = ef.load_dem((-147.85, 64.83, -147.84, 64.84), resolution="10m",
+                      crs="utm", source="arcticdem")
+    assert dem.attrs["source"] == "arcticdem"
+    assert np.isfinite(dem.values).mean() > 0.95
+
+
+def test_load_sentinel1_live():
+    import earthfetch as ef
+
+    s1 = ef.load_sentinel1(BBOX, start="2024-06-01", end="2024-06-30", res=30)
+    assert list(s1.band.values) == ["VV", "VH"]
+    assert -40 < float(np.nanmedian(s1.values)) < 10  # plausible dB
+
+
+def test_rem_live():
+    import earthfetch as ef
+
+    r = ef.rem((-110.72, 45.38, -110.66, 45.42), resolution="10m")
+    assert r.attrs["river"] == "Yellowstone River"
+    assert abs(float(np.nanpercentile(r.rem, 1))) < 5

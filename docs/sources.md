@@ -49,3 +49,31 @@ source="landsat")`.
 Planetary Computer. Anonymous SAS tokens are fetched automatically.
 
 ::: earthfetch.naip.search_naip
+
+## Sentinel-1 SAR
+
+Radiometrically terrain corrected gamma naught backscatter (VV/VH), global,
+10 m, via Microsoft Planetary Computer (zero key). Sees through cloud.
+
+::: earthfetch.sentinel1.search_sentinel1
+
+::: earthfetch.sentinel1.load_sentinel1
+
+::: earthfetch.sentinel1.water_mask
+
+## ArcticDEM and REMA
+
+Polar Geospatial Center DEM mosaics at 2, 10, and 32 m: ArcticDEM north of
+roughly 60°N, REMA over Antarctica. Heights are relative to the WGS84
+ellipsoid. Use `load_dem(..., source="arcticdem" | "rema" | "polar")`.
+
+::: earthfetch.polar.search_polar_dem
+
+::: earthfetch.polar.polar_dem_urls
+
+## River centerlines
+
+USGS National Hydrography Dataset (US, 1:24k) with an OpenStreetMap
+fallback everywhere else. Used by `rem`.
+
+::: earthfetch.rivers.river_centerline

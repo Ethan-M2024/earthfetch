@@ -5,12 +5,13 @@ build-backend = "hatchling.build"
 [project]
 name = "earthfetch"
 dynamic = ["version"]
-description = "Download USGS 3DEP DEMs and Sentinel-2 L2A imagery with zero API keys"
+description = "Analysis-ready DEMs, satellite imagery, radar, and floodplain maps with zero API keys"
 readme = "README.md"
 license = "MIT"
 requires-python = ">=3.9"
 authors = [{ name = "Ethan Muhlestein", email = "ethannmuhlestein@gmail.com" }]
-keywords = ["dem", "sentinel-2", "usgs", "3dep", "satellite", "elevation", "stac", "gis"]
+keywords = ["dem", "sentinel-2", "sentinel-1", "sar", "landsat", "arcticdem", "usgs", "3dep",
+            "satellite", "elevation", "stac", "gis", "rem", "floodplain", "remote-sensing"]
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Intended Audience :: Science/Research",
