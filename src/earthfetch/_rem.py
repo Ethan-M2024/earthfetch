@@ -31,7 +31,7 @@ from .utils import logger
 #: on a grid this size and resampled to full resolution
 _BASE_CELLS = 250_000
 #: at most this many river samples feed the interpolation
-_MAX_POINTS = 5_000
+_MAX_POINTS = 2_000
 
 
 def _river_geometry(river, aoi) -> tuple[dict, str | None, str]:
@@ -114,14 +114,44 @@ def _sample_profile(dem: np.ndarray, transform, pts: np.ndarray,
         win = dem[max(0, row - r):row + r + 1, max(0, col - r):col + r + 1]
         vals = win[np.isfinite(win)]
         if vals.size:
-            out[i] = np.percentile(vals, 10)
+            out[i] = np.percentile(vals, 5)
     return out
 
 
+def _downhill(z: np.ndarray) -> np.ndarray:
+    """Force a river profile to never rise downstream.
+
+    Water can't flow uphill, so any bump in the sampled profile is a gravel
+    bar, levee, bridge, or vegetation return, not the water surface. The
+    downstream end is whichever end is lower; a running minimum from the
+    upstream end then removes every bump.
+    """
+    if z.size < 2:
+        return z
+    n = max(1, z.size // 10)
+    if np.nanmedian(z[:n]) < np.nanmedian(z[-n:]):
+        return np.minimum.accumulate(z[::-1])[::-1]
+    return np.minimum.accumulate(z)
+
+
 def _idw(xy: np.ndarray, z: np.ndarray, qx: np.ndarray, qy: np.ndarray,
-         k: int, power: float) -> np.ndarray:
-    """Inverse-distance-weighted values of (xy, z) at query points."""
+         k: int | None, power: float) -> np.ndarray:
+    """Inverse-distance-weighted values of (xy, z) at query points.
+
+    ``k=None`` weights every sample, which keeps the surface continuous;
+    a k-nearest search is faster but steps wherever the neighbour set
+    changes, which shows up as bands far from the river.
+    """
     q = np.column_stack([qx.ravel(), qy.ravel()])
+    if k is None or k >= len(z):
+        vals = np.empty(len(q))
+        step = max(1, 20_000_000 // max(1, len(xy)))
+        for s in range(0, len(q), step):
+            d = np.hypot(q[s:s + step, 0, None] - xy[None, :, 0],
+                         q[s:s + step, 1, None] - xy[None, :, 1])
+            wts = 1.0 / np.maximum(d, 1e-6) ** power
+            vals[s:s + step] = (wts @ z) / wts.sum(axis=1)
+        return vals.reshape(qx.shape)
     k = min(k, len(z))
     try:
         from scipy.spatial import cKDTree
@@ -152,8 +182,8 @@ def rem(
     res: float | None = None,
     source: str = "auto",
     spacing: float | None = None,
-    k: int = 48,
-    power: float = 2.0,
+    k: int | None = None,
+    power: float = 3.0,
     clip: bool | None = None,
 ) -> xarray.Dataset:
     """Relative Elevation Model for any AOI in one call.
@@ -174,7 +204,10 @@ def rem(
     crs, res : output grid (defaults: the AOI's UTM zone, native DEM pixel).
     spacing : distance between river samples in CRS units (default: 3
         pixels).
-    k, power : inverse-distance weighting neighbours and exponent.
+    k, power : inverse-distance weighting: ``k`` nearest river samples
+        (default ``None``, all of them, for a seamless surface) and the
+        distance exponent. A down-valley trend plane is fitted first, so
+        the surface keeps sloping with the valley far from the channel.
     clip : NaN-out pixels outside a polygon AOI.
 
     Returns
@@ -211,12 +244,15 @@ def rem(
         if len(line) < 2:
             continue
         pts = _densify(line, spacing)
-        prof = _sample_profile(z, transform, pts, radius_px=2)
+        # search ~15 m around each sample: mapped centerlines drift off the
+        # wetted channel by that much, and a low percentile finds the water
+        radius = max(2, int(round(15.0 / pixel)))
+        prof = _sample_profile(z, transform, pts, radius_px=radius)
         keep = np.isfinite(prof)
         if keep.sum() < 2:
             continue
         pts, prof = pts[keep], prof[keep]
-        prof = _rolling_median(prof, window=7)
+        prof = _downhill(_rolling_median(prof, window=7))
         pts_list.append(pts)
         prof_list.append(prof)
     if not pts_list:
@@ -238,7 +274,29 @@ def rem(
     coarse_tf = transform * Affine.scale(factor)
     cols, rows = np.meshgrid(np.arange(cw) + 0.5, np.arange(ch) + 0.5)
     qx, qy = coarse_tf * (cols, rows)
-    coarse = _idw(xy, zs, qx, qy, k=k, power=power).astype("float32")
+    # IDW alone drifts toward the mean river elevation far from the channel,
+    # ignoring the valley's slope. Fit that slope as a plane, spread only the
+    # residuals, and add the plane back. A nearly straight river can't
+    # constrain a cross-valley tilt, so then only the down-valley slope along
+    # its main axis is fitted.
+    center = xy.mean(axis=0)
+    _, spread, axes = np.linalg.svd(xy - center, full_matrices=False)
+    uv = (xy - center) @ axes.T
+    keep = [0] if spread[1] < 0.05 * spread[0] else [0, 1]
+    design = np.column_stack([uv[:, keep], np.ones(len(zs))])
+    coef = np.linalg.lstsq(design, zs, rcond=None)[0]
+    lo, hi = uv[:, 0].min(), uv[:, 0].max()
+
+    def trend(x, y):
+        # down-valley position is clamped to the sampled reach: past the
+        # river's ends the slope is unknown, so hold the end value
+        pts = np.stack([x - center[0], y - center[1]], axis=-1) @ axes.T
+        pts[..., 0] = np.clip(pts[..., 0], lo, hi)
+        return sum(coef[i] * pts[..., a] for i, a in enumerate(keep)) + coef[-1]
+
+    resid = zs - trend(xy[:, 0], xy[:, 1])
+    coarse = (trend(qx, qy)
+              + _idw(xy, resid, qx, qy, k=k, power=power)).astype("float32")
 
     base = np.full((h, w), np.nan, dtype="float32")
     reproject(source=coarse, destination=base,
